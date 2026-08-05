@@ -1,0 +1,22 @@
+{
+  "manifestVersion": 1,
+  "appID": "cli_REPLACE_WITH_PERSONAL_APP_ID",
+  "appType": "docs-addon",
+  "blockTypeID": "blk_REPLACE_WITH_PERSONAL_BLOCK_TYPE_ID",
+  "projectName": "Migratory Time",
+  "contributes": {
+    "addPanel": {
+      "align": "center",
+      "initialHeight": 330,
+      "resizeType": "vertical",
+      "useHostLoading": true,
+      "view": "index.html"
+    },
+    "modal": {
+      "regions": {
+        "initialHeight": 430,
+        "view": "modal.html"
+      }
+    }
+  }
+}

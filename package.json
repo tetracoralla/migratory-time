@@ -1,0 +1,38 @@
+{
+  "name": "migratory-time",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A minimal bilingual world clock and time-zone converter by openAdam.",
+  "author": "openAdam",
+  "license": "Apache-2.0",
+  "homepage": "https://tetracoralla.github.io/migratory-time/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tetracoralla/migratory-time.git"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node scripts/checkBundle.mjs",
+    "local": "npm run build && vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "jsdom": "^29.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.10"
+  }
+}
