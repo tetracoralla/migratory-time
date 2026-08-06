@@ -15,13 +15,22 @@ function instant(value: string) {
 }
 
 describe('clock history', () => {
+  it('treats an opened shared snapshot as the history baseline', () => {
+    const shared = instant('2026-08-17T07:00:00Z')
+    const laterNow = instant('2026-08-17T08:00:00Z')
+    const history = createClockHistory({ instant: shared, isLive: false })
+
+    expect(undoClockHistory(history, laterNow)).toBe(history)
+    expect(history.present).toEqual({ instant: shared, isLive: false })
+  })
+
   it('undoes and redoes multiple committed clock states', () => {
     const live = instant('2026-08-05T04:00:00Z')
     const first = instant('2026-08-05T05:00:00Z')
     const second = instant('2026-08-05T06:00:00Z')
     const undoNow = instant('2026-08-05T07:00:00Z')
 
-    let history = createClockHistory(live)
+    let history = createClockHistory({ instant: live, isLive: true })
     history = commitClockInstant(history, first)
     history = commitClockInstant(history, second)
 
@@ -43,7 +52,7 @@ describe('clock history', () => {
     const edited = instant('2026-08-05T05:00:00Z')
     const resetNow = instant('2026-08-05T06:00:00Z')
 
-    let history = createClockHistory(live)
+    let history = createClockHistory({ instant: live, isLive: true })
     history = commitClockInstant(history, edited)
     history = resetClockToLive(history, resetNow, true)
 
@@ -57,7 +66,7 @@ describe('clock history', () => {
     const second = instant('2026-08-05T06:00:00Z')
     const resetNow = instant('2026-08-05T07:00:00Z')
 
-    let history = createClockHistory(live)
+    let history = createClockHistory({ instant: live, isLive: true })
     history = commitClockInstant(history, first)
     history = commitClockInstant(history, second)
     history = resetClockToLive(history, resetNow, true)
@@ -72,7 +81,7 @@ describe('clock history', () => {
     const resetNow = instant('2026-08-05T06:00:00Z')
     const redoNow = instant('2026-08-05T07:00:00Z')
 
-    let history = createClockHistory(live)
+    let history = createClockHistory({ instant: live, isLive: true })
     history = commitClockInstant(history, fixed)
     history = resetClockToLive(history, resetNow)
     history = undoClockHistory(history, resetNow)
@@ -88,7 +97,7 @@ describe('clock history', () => {
     const second = instant('2026-08-05T06:00:00Z')
     const replacement = instant('2026-08-05T07:00:00Z')
 
-    let history = createClockHistory(live)
+    let history = createClockHistory({ instant: live, isLive: true })
     history = commitClockInstant(history, first)
     history = commitClockInstant(history, second)
     history = undoClockHistory(history, live)

@@ -26,11 +26,11 @@ function materialize(snapshot: ClockSnapshot, now: Temporal.Instant) {
   return snapshot.isLive ? { instant: now, isLive: true } : snapshot
 }
 
-export function createClockHistory(now: Temporal.Instant): ClockHistory {
+export function createClockHistory(initial: ClockSnapshot): ClockHistory {
   return {
     future: [],
     past: [],
-    present: { instant: now, isLive: true },
+    present: initial,
   }
 }
 

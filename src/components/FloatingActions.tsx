@@ -1,5 +1,7 @@
+import type { RefObject } from 'react'
 import { UI_TEXT } from '../i18n'
 import type { Locale } from '../types'
+import { ActionFeedback } from './ActionFeedback'
 
 interface FloatingActionsProps {
   copyStatus: 'idle' | 'success' | 'error'
@@ -7,8 +9,12 @@ interface FloatingActionsProps {
   locale: Locale
   onCopy: () => void
   onReset: () => void
+  onShare: () => void
   resetFeedback: boolean
   resetSequence: number
+  shareButtonRef: RefObject<HTMLButtonElement | null>
+  shareOpen: boolean
+  shareStatus: 'idle' | 'error' | 'invalid-link'
 }
 
 export function FloatingActions({
@@ -17,45 +23,53 @@ export function FloatingActions({
   locale,
   onCopy,
   onReset,
+  onShare,
   resetFeedback,
   resetSequence,
+  shareButtonRef,
+  shareOpen,
+  shareStatus,
 }: FloatingActionsProps) {
   const text = UI_TEXT[locale]
-  const feedback =
-    copyStatus === 'error'
-      ? { kind: 'error', message: text.copyFailed }
-      : copyStatus === 'success'
-        ? { kind: 'success', message: text.copied }
-        : resetFeedback
-          ? { kind: 'success', message: text.resetDone }
-          : null
+  const feedback: { kind: 'success' | 'error'; message: string } | null =
+    shareStatus === 'invalid-link'
+      ? { kind: 'error', message: text.invalidShareLink }
+      : shareStatus === 'error'
+        ? { kind: 'error', message: text.shareFailed }
+        : copyStatus === 'error'
+          ? { kind: 'error', message: text.copyFailed }
+          : copyStatus === 'success'
+            ? { kind: 'success', message: text.copied }
+            : resetFeedback
+              ? { kind: 'success', message: text.resetDone }
+              : null
 
   return (
     <>
       {feedback ? (
-        <span
-          className={`action-feedback${feedback.kind === 'error' ? ' is-error' : ''}`}
-          role={feedback.kind === 'error' ? 'alert' : 'status'}
-        >
-          <svg
-            className="action-feedback-icon"
-            aria-hidden="true"
-            viewBox="0 0 20 20"
-          >
-            {feedback.kind === 'error' ? (
-              <>
-                <path d="M6.5 6.5l7 7" />
-                <path d="M13.5 6.5l-7 7" />
-              </>
-            ) : (
-              <path d="m5.5 10.3 2.8 2.8 6.2-6.2" />
-            )}
-          </svg>
-          {feedback.message}
-        </span>
+        <ActionFeedback kind={feedback.kind} message={feedback.message} />
       ) : null}
 
       <div className="floating-actions" aria-label={text.appLabel}>
+        <button
+          ref={shareButtonRef}
+          className={`floating-action share-action${shareOpen ? ' is-shared' : ''}${shareStatus === 'error' ? ' has-error' : ''}`}
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={shareOpen}
+          aria-label={
+            shareStatus === 'error' ? text.shareRetry : text.share
+          }
+          data-time-action="share"
+          title={shareStatus === 'error' ? text.shareRetry : text.share}
+          onClick={onShare}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M12 15V3" />
+            <path d="m8 7 4-4 4 4" />
+            <path d="M6 10v8.5A1.5 1.5 0 0 0 7.5 20h9a1.5 1.5 0 0 0 1.5-1.5V10" />
+          </svg>
+        </button>
         <button
           className={`floating-action${isLive ? ' is-live' : ''}`}
           type="button"

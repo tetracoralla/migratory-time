@@ -9,6 +9,7 @@ const result: ConversionResult = {
   id: 'Asia/Shanghai',
   label: '北京时间',
   labelEn: 'China',
+  shareCode: 'cn',
   shortLabel: '北京',
   shortLabelEn: 'China',
   dateLabel: '08月04日 周二',

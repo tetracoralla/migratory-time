@@ -1,5 +1,6 @@
 export type DeferredAction =
   | { type: 'copy' }
+  | { type: 'share' }
   | { type: 'language' }
   | { type: 'regions' }
   | { type: 'reset' }
@@ -7,6 +8,7 @@ export type DeferredAction =
 
 interface DeferredActionHandlers<TCommit> {
   copy: (commit: TCommit) => void
+  share: (commit: TCommit) => void
   editZone: (zoneId: string, commit: TCommit) => void
   language: () => void
   regions: () => void
@@ -22,6 +24,7 @@ export function getDeferredAction(
     .timeAction
   if (
     timeAction === 'copy' ||
+    timeAction === 'share' ||
     timeAction === 'language' ||
     timeAction === 'regions' ||
     timeAction === 'reset'
@@ -40,6 +43,8 @@ export function replayDeferredAction<TCommit>(
 ) {
   if (action?.type === 'copy') {
     handlers.copy(commit)
+  } else if (action?.type === 'share') {
+    handlers.share(commit)
   } else if (action?.type === 'reset') {
     handlers.reset(commit)
   } else if (action?.type === 'language') {

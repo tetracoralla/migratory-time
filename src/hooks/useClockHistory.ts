@@ -6,6 +6,7 @@ import {
   resetClockToLive,
   undoClockHistory,
   updateLiveClock,
+  type ClockSnapshot,
   type ClockHistory,
 } from '../lib/clockHistory'
 import { getNowInstant } from '../lib/timeConversion'
@@ -13,9 +14,11 @@ import type { WallTimeResolution } from '../types'
 
 type Instant = Extract<WallTimeResolution, { status: 'valid' }>['instant']
 
-export function useClockHistory() {
+export function useClockHistory(initialSnapshot?: ClockSnapshot) {
   const [history, setHistory] = useState(() =>
-    createClockHistory(getNowInstant()),
+    createClockHistory(
+      initialSnapshot ?? { instant: getNowInstant(), isLive: true },
+    ),
   )
   const historyRef = useRef(history)
 

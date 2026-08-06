@@ -10,10 +10,14 @@ describe('deferred action replay', () => {
       language: vi.fn(),
       regions: vi.fn(),
       reset: vi.fn(),
+      share: vi.fn(),
     }
 
     replayDeferredAction({ type: 'copy' }, commit, handlers)
     expect(handlers.copy).toHaveBeenCalledWith(commit)
+
+    replayDeferredAction({ type: 'share' }, commit, handlers)
+    expect(handlers.share).toHaveBeenCalledWith(commit)
 
     replayDeferredAction({ type: 'reset' }, commit, handlers)
     expect(handlers.reset).toHaveBeenCalledWith(commit)
@@ -42,11 +46,13 @@ describe('deferred action replay', () => {
       language: vi.fn(),
       regions: vi.fn(),
       reset: vi.fn(),
+      share: vi.fn(),
     }
 
     replayDeferredAction(undefined, 'commit', handlers)
 
     expect(handlers.copy).not.toHaveBeenCalled()
+    expect(handlers.share).not.toHaveBeenCalled()
     expect(handlers.editZone).not.toHaveBeenCalled()
     expect(handlers.reset).not.toHaveBeenCalled()
     expect(handlers.language).not.toHaveBeenCalled()

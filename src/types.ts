@@ -5,6 +5,7 @@ export interface TimeZoneDefinition {
   id: string
   label: string
   labelEn: string
+  shareCode: string
   shortLabel: string
   shortLabelEn: string
 }
@@ -18,6 +19,12 @@ export interface ConversionResult extends TimeZoneDefinition {
   timeLabel: string
   timeZoneAbbreviation: string
   utcOffsetLabel: string
+}
+
+export interface ShareSnapshot {
+  locale: Locale
+  results: ConversionResult[]
+  url: string
 }
 
 export type WallTimeResolution =

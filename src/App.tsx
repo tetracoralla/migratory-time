@@ -3,6 +3,7 @@ import { FloatingActions } from './components/FloatingActions'
 import { PreferenceActions } from './components/PreferenceActions'
 import { RegionPickerDialog } from './components/RegionPickerDialog'
 import { ResultRow } from './components/ResultRow'
+import { ShareDialog } from './components/ShareDialog'
 import { BEIJING_TIME_ZONE, TIME_ZONES } from './data/timeZones'
 import { useClockHistory } from './hooks/useClockHistory'
 import { useClockHistoryShortcuts } from './hooks/useClockHistoryShortcuts'
@@ -16,16 +17,22 @@ import {
 import { startBrowserMinuteTicker } from './lib/liveClock'
 import { loadPreferences, savePreferences } from './lib/preferences'
 import {
+  makeShareUrl,
+  parseSharedLaunchState,
+} from './lib/shareState'
+import {
   convertInstant,
   formatEditableDateTimeInput,
   makeCopyText,
   parseEditableDateTime,
   resolveWallTime,
 } from './lib/timeConversion'
-import type { WallTimeResolution } from './types'
+import type { ShareSnapshot, WallTimeResolution } from './types'
 
 type CopyStatus = 'idle' | 'success' | 'error'
+type ShareStatus = 'idle' | 'error' | 'invalid-link'
 const ACTION_FEEDBACK_DURATION = 1800
+const INVALID_LINK_FEEDBACK_DURATION = 4000
 
 type EditSubmission =
   | { status: 'none' }
@@ -33,6 +40,7 @@ type EditSubmission =
   | { status: 'needs-choice' }
   | {
       status: 'committed'
+      historyChanged: boolean
       instant: Extract<WallTimeResolution, { status: 'valid' }>['instant']
     }
 
@@ -44,6 +52,13 @@ function App() {
       ),
     [],
   )
+  const initialSharedState = useMemo(
+    () =>
+      parseSharedLaunchState(
+        typeof window === 'undefined' ? '' : window.location.search,
+      ),
+    [],
+  )
   const {
     commitInstant,
     instant: referenceInstant,
@@ -52,25 +67,38 @@ function App() {
     refreshLive,
     resetToNow: resetClockToNow,
     undo,
-  } = useClockHistory()
+  } = useClockHistory(
+    initialSharedState.status === 'valid'
+      ? { instant: initialSharedState.instant, isLive: false }
+      : undefined,
+  )
   const [locale, setLocale] = useState(initialPreferences.locale)
   const [selectedZoneIds, setSelectedZoneIds] = useState(
-    initialPreferences.zoneIds,
+    initialSharedState.status === 'valid'
+      ? initialSharedState.zoneIds
+      : initialPreferences.zoneIds,
   )
   const [regionPickerOpen, setRegionPickerOpen] = useState(false)
+  const [shareSnapshot, setShareSnapshot] = useState<ShareSnapshot | null>(null)
   const [editingZone, setEditingZone] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [editError, setEditError] = useState<string | null>(null)
   const [ambiguousResolution, setAmbiguousResolution] =
     useState<Extract<WallTimeResolution, { status: 'ambiguous' }> | null>(null)
   const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle')
+  const [shareStatus, setShareStatus] = useState<ShareStatus>(
+    initialSharedState.status === 'invalid' ? 'invalid-link' : 'idle',
+  )
   const [resetFeedback, setResetFeedback] = useState(false)
   const [resetSequence, setResetSequence] = useState(0)
   const copyStatusTimer = useRef<number | undefined>(undefined)
+  const shareStatusTimer = useRef<number | undefined>(undefined)
   const resetFeedbackTimer = useRef<number | undefined>(undefined)
   const focusFrame = useRef<number | undefined>(undefined)
   const editButtonRefs = useRef(new Map<string, HTMLButtonElement>())
   const regionButtonRef = useRef<HTMLButtonElement>(null)
+  const shareButtonRef = useRef<HTMLButtonElement>(null)
+  const persistSelectedZones = useRef(initialSharedState.status !== 'valid')
   const pendingInteractionCommit = useRef<
     Extract<EditSubmission, { status: 'committed' }> | undefined
   >(undefined)
@@ -82,13 +110,15 @@ function App() {
     pendingInteractionCommit.current = undefined
     deferredActionAfterAmbiguity.current = undefined
     window.clearTimeout(copyStatusTimer.current)
+    window.clearTimeout(shareStatusTimer.current)
     window.clearTimeout(resetFeedbackTimer.current)
     setCopyStatus('idle')
+    setShareStatus('idle')
     setResetFeedback(false)
   }, [])
 
   useClockHistoryShortcuts({
-    blocked: Boolean(editingZone) || regionPickerOpen,
+    blocked: Boolean(editingZone) || regionPickerOpen || shareSnapshot !== null,
     onApplied: clearFeedbackAfterHistoryShortcut,
     onRedo: redo,
     onUndo: undo,
@@ -107,11 +137,26 @@ function App() {
   useEffect(() => {
     savePreferences(
       typeof window === 'undefined' ? undefined : window.localStorage,
-      { locale, zoneIds: selectedZoneIds },
+      {
+        locale,
+        zoneIds: persistSelectedZones.current
+          ? selectedZoneIds
+          : initialPreferences.zoneIds,
+      },
     )
     document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en'
     document.title = 'Migratory Time'
-  }, [locale, selectedZoneIds])
+  }, [initialPreferences.zoneIds, locale, selectedZoneIds])
+
+  useEffect(() => {
+    if (shareStatus !== 'invalid-link') return
+
+    window.clearTimeout(shareStatusTimer.current)
+    shareStatusTimer.current = window.setTimeout(
+      () => setShareStatus('idle'),
+      INVALID_LINK_FEEDBACK_DURATION,
+    )
+  }, [shareStatus])
 
   useEffect(() => {
     if (!isLive || editingZone) return
@@ -122,6 +167,7 @@ function App() {
   useEffect(
     () => () => {
       window.clearTimeout(copyStatusTimer.current)
+      window.clearTimeout(shareStatusTimer.current)
       window.clearTimeout(resetFeedbackTimer.current)
       window.cancelAnimationFrame(focusFrame.current ?? 0)
     },
@@ -174,6 +220,7 @@ function App() {
     window.clearTimeout(resetFeedbackTimer.current)
     setResetFeedback(false)
     setCopyStatus('idle')
+    setShareStatus('idle')
   }
 
   function cancelEdit(restoreFocus = false) {
@@ -189,13 +236,15 @@ function App() {
     restoreFocus = false,
   ) {
     const finishedZone = editingZone ?? BEIJING_TIME_ZONE
-    commitInstant(instant)
+    const historyChanged = commitInstant(instant)
     clearEditState()
     setCopyStatus('idle')
+    setShareStatus('idle')
     if (restoreFocus) restoreFocusToRow(finishedZone)
 
     return {
       status: 'committed',
+      historyChanged,
       instant,
     } satisfies Extract<EditSubmission, { status: 'committed' }>
   }
@@ -238,7 +287,11 @@ function App() {
         pendingInteractionCommit.current = commit
         void handleCopy()
       },
-      reset: () => resetToNow(true),
+      share(commit) {
+        pendingInteractionCommit.current = commit
+        handleShare()
+      },
+      reset: (commit) => resetToNow(commit.historyChanged),
       editZone(zoneId, commit) {
         pendingInteractionCommit.current = commit
         startEdit(zoneId)
@@ -251,16 +304,23 @@ function App() {
   function toggleLocale() {
     setLocale((currentLocale) => (currentLocale === 'zh' ? 'en' : 'zh'))
     setCopyStatus('idle')
+    setShareStatus('idle')
   }
 
   function openRegionPicker() {
     setRegionPickerOpen(true)
     setCopyStatus('idle')
+    setShareStatus('idle')
   }
 
   const closeRegionPicker = useCallback(() => {
     setRegionPickerOpen(false)
     window.requestAnimationFrame(() => regionButtonRef.current?.focus())
+  }, [])
+
+  const closeShareDialog = useCallback(() => {
+    setShareSnapshot(null)
+    window.requestAnimationFrame(() => shareButtonRef.current?.focus())
   }, [])
 
   const toggleZone = useCallback((zoneId: string) => {
@@ -273,21 +333,26 @@ function App() {
         selected.add(zoneId)
       }
 
+      persistSelectedZones.current = true
       return TIME_ZONES.map((zone) => zone.id).filter((id) => selected.has(id))
     })
     setCopyStatus('idle')
+    setShareStatus('idle')
   }, [])
 
   function resetToNow(coalesceCommittedEdit = false) {
     const shouldCoalesce =
-      coalesceCommittedEdit || pendingInteractionCommit.current !== undefined
+      coalesceCommittedEdit ||
+      pendingInteractionCommit.current?.historyChanged === true
     pendingInteractionCommit.current = undefined
     deferredActionAfterAmbiguity.current = undefined
     window.clearTimeout(copyStatusTimer.current)
+    window.clearTimeout(shareStatusTimer.current)
     window.clearTimeout(resetFeedbackTimer.current)
     clearEditState()
     resetClockToNow(shouldCoalesce)
     setCopyStatus('idle')
+    setShareStatus('idle')
     setResetSequence((sequence) => sequence + 1)
     setResetFeedback(true)
     resetFeedbackTimer.current = window.setTimeout(
@@ -300,7 +365,9 @@ function App() {
     const pendingCommit = pendingInteractionCommit.current
     pendingInteractionCommit.current = undefined
     window.clearTimeout(resetFeedbackTimer.current)
+    window.clearTimeout(shareStatusTimer.current)
     setResetFeedback(false)
+    setShareStatus('idle')
     const copyResults = pendingCommit
       ? convertInstant(pendingCommit.instant, locale).filter((result) =>
           selectedZoneIds.includes(result.id),
@@ -321,6 +388,34 @@ function App() {
       )
     } catch {
       setCopyStatus('error')
+    }
+  }
+
+  function handleShare() {
+    const pendingCommit = pendingInteractionCommit.current
+    pendingInteractionCommit.current = undefined
+    const shareInstant = pendingCommit?.instant ?? referenceInstant
+    const shareResults = convertInstant(shareInstant, locale).filter((result) =>
+      selectedZoneIds.includes(result.id),
+    )
+    if (!shareResults.length) return
+
+    window.clearTimeout(copyStatusTimer.current)
+    window.clearTimeout(resetFeedbackTimer.current)
+    window.clearTimeout(shareStatusTimer.current)
+    setCopyStatus('idle')
+    setResetFeedback(false)
+    setShareStatus('idle')
+
+    try {
+      const url = makeShareUrl(
+        window.location.href,
+        shareInstant,
+        selectedZoneIds,
+      )
+      setShareSnapshot({ locale, results: shareResults, url })
+    } catch {
+      setShareStatus('error')
     }
   }
 
@@ -400,8 +495,12 @@ function App() {
         locale={locale}
         onCopy={() => void handleCopy()}
         onReset={() => resetToNow()}
+        onShare={handleShare}
         resetFeedback={resetFeedback}
         resetSequence={resetSequence}
+        shareButtonRef={shareButtonRef}
+        shareOpen={shareSnapshot !== null}
+        shareStatus={shareStatus}
       />
 
       <PreferenceActions
@@ -420,6 +519,10 @@ function App() {
           onClose={closeRegionPicker}
           onToggleZone={toggleZone}
         />
+      ) : null}
+
+      {shareSnapshot ? (
+        <ShareDialog snapshot={shareSnapshot} onClose={closeShareDialog} />
       ) : null}
     </main>
   )

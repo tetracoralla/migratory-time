@@ -13,12 +13,14 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { writeClipboardText } from './lib/clipboard'
+import { PREFERENCES_STORAGE_KEY } from './lib/preferences'
 
 vi.mock('./lib/clipboard', () => ({ writeClipboardText: vi.fn() }))
 
 const writeClipboard = vi.mocked(writeClipboardText)
 
 beforeEach(() => {
+  window.history.replaceState({}, '', '/')
   window.localStorage.clear()
   writeClipboard.mockReset()
   writeClipboard.mockResolvedValue(undefined)
@@ -111,6 +113,29 @@ describe('application editing flow', () => {
     ).toBe('01:30')
   })
 
+  it('continues a deferred share after resolving a repeated DST time', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await enterTime(user, '美东时间', '202611010130')
+    await user.click(screen.getByRole('button', { name: '分享当前时间' }))
+
+    expect(screen.getByRole('group', { name: '重复时刻' })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: '第 1 次' }))
+
+    const dialog = screen.getByRole('dialog', { name: '分享' })
+    const link = within(dialog).getByRole('textbox', { name: '分享链接' })
+    expect((link as HTMLInputElement).value).toContain(
+      '?t=20261101T0530Z&z=cn,et,pt,uk,ce',
+    )
+    expect(writeClipboard).not.toHaveBeenCalled()
+    expect(
+      screen.queryByRole('textbox', {
+        name: '编辑美东时间的日期和时间',
+      }),
+    ).toBeNull()
+  })
+
   it('continues a deferred region switch after resolving a repeated DST time', async () => {
     const user = userEvent.setup()
     render(<App />)
@@ -171,6 +196,130 @@ describe('application editing flow', () => {
     expect(
       screen.queryByRole('button', { name: '编辑美东时间' }),
     ).toBeNull()
+  })
+
+  it('opens a shared fixed time with only its selected regions', () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/?t=20260817T0700Z&z=cn,pt',
+    )
+    const { container } = render(<App />)
+
+    expect(
+      container.querySelector('[data-zone="Asia/Shanghai"] time')?.textContent,
+    ).toBe('15:00')
+    expect(
+      container.querySelector('[data-zone="America/Los_Angeles"] time')
+        ?.textContent,
+    ).toBe('00:00')
+    expect(
+      screen.queryByRole('button', { name: '编辑美东时间' }),
+    ).toBeNull()
+    expect(
+      screen.getByRole('button', { name: '恢复到现在' }).getAttribute(
+        'aria-pressed',
+      ),
+    ).toBe('false')
+  })
+
+  it('opens a frozen image preview and copies its exact snapshot link', async () => {
+    const user = userEvent.setup()
+    window.history.replaceState(
+      {},
+      '',
+      '/?t=20260817T0700Z&z=cn,pt',
+    )
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: '分享当前时间' }))
+
+    const dialog = screen.getByRole('dialog', { name: '分享' })
+    expect(
+      within(dialog).getByRole('img', {
+        name: '时间列表分享图片预览',
+      }),
+    ).toBeTruthy()
+    expect(
+      within(dialog).getByRole('button', { name: '复制图片' }),
+    ).toBeTruthy()
+    expect(
+      within(dialog).getByRole('button', { name: '下载图片' }),
+    ).toBeTruthy()
+    expect(within(dialog).queryByRole('button', { name: '更多' })).toBeNull()
+    const link = within(dialog).getByRole('textbox', { name: '分享链接' })
+    expect((link as HTMLInputElement).readOnly).toBe(true)
+    expect((link as HTMLInputElement).value).toBe(
+      `${window.location.origin}/?t=20260817T0700Z&z=cn,pt`,
+    )
+
+    await user.click(within(dialog).getByRole('button', { name: '复制链接' }))
+    await waitFor(() => expect(writeClipboard).toHaveBeenCalledTimes(1))
+    expect(writeClipboard.mock.calls[0][0]).toBe(
+      `${window.location.origin}/?t=20260817T0700Z&z=cn,pt`,
+    )
+    expect(screen.getByRole('status').textContent).toContain('链接已复制')
+
+    await user.click(within(dialog).getByRole('button', { name: '关闭' }))
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: '分享当前时间' }),
+      ),
+    )
+  })
+
+  it('does not overwrite saved region preferences when opening a share', () => {
+    window.localStorage.setItem(
+      PREFERENCES_STORAGE_KEY,
+      JSON.stringify({ locale: 'zh', zoneIds: ['Europe/London'] }),
+    )
+    window.history.replaceState(
+      {},
+      '',
+      '/?t=20260817T0700Z&z=cn,pt',
+    )
+    const firstView = render(<App />)
+
+    expect(screen.getByRole('button', { name: '编辑北京时间' })).toBeTruthy()
+    firstView.unmount()
+    window.history.replaceState({}, '', '/')
+    render(<App />)
+
+    expect(screen.getByRole('button', { name: '编辑英国时间' })).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: '编辑北京时间' }),
+    ).toBeNull()
+  })
+
+  it('rejects an invalid share link instead of presenting it as a schedule', () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/?t=20260230T0700Z&z=cn,pt',
+    )
+    render(<App />)
+
+    expect(screen.getByRole('alert').textContent).toContain(
+      '分享链接无效，已显示当前时间',
+    )
+    expect(
+      screen.getByRole('button', { name: '恢复到现在' }).getAttribute(
+        'aria-pressed',
+      ),
+    ).toBe('true')
+  })
+
+  it('keeps invalid editing open and blocks sharing old time', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    const input = await enterTime(user, '北京时间', '202602301200')
+    await user.click(screen.getByRole('button', { name: '分享当前时间' }))
+
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByRole('alert').textContent).toBe('日期或时间无效')
+    expect(screen.queryByRole('dialog', { name: '分享' })).toBeNull()
+    expect(writeClipboard).not.toHaveBeenCalled()
   })
 
   it('switches viewer language without changing the selected instant', async () => {
@@ -267,5 +416,33 @@ describe('application editing flow', () => {
         'aria-pressed',
       ),
     ).toBe('true')
+  })
+
+  it('undoes reset to an unchanged fixed time instead of skipping it', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    const firstInput = await enterTime(user, '北京时间', '202608051213')
+    await user.type(firstInput, '{Enter}')
+
+    fireEvent.click(screen.getByRole('button', { name: '编辑北京时间' }))
+    const unchangedInput = screen.getByRole('textbox', {
+      name: '编辑北京时间的日期和时间',
+    })
+    expect((unchangedInput as HTMLInputElement).value).toBe(
+      '2026-08-05 12:13',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '恢复到现在' }))
+    fireEvent.keyDown(window, { key: 'z', metaKey: true })
+
+    expect(
+      container.querySelector('[data-zone="Asia/Shanghai"] time')?.textContent,
+    ).toBe('12:13')
+    expect(
+      screen.getByRole('button', { name: '恢复到现在' }).getAttribute(
+        'aria-pressed',
+      ),
+    ).toBe('false')
   })
 })

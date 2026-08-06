@@ -1,6 +1,6 @@
 const CACHE_PREFIX = 'migratory-time-'
 const LEGACY_CACHE_PREFIX = 'time-zone-app-'
-const CACHE_NAME = `${CACHE_PREFIX}v1`
+const CACHE_NAME = `${CACHE_PREFIX}v2`
 const SCOPE_URL = new URL('./', self.location.href)
 const INDEX_URL = new URL('index.html', SCOPE_URL)
 
@@ -54,17 +54,29 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
 
-  event.respondWith(
-    fetch(event.request)
+  const isDocumentNavigation =
+    event.request.mode === 'navigate' || event.request.destination === 'document'
+  const cacheKey = isDocumentNavigation ? SCOPE_URL.href : event.request
+  const networkRequest = fetch(event.request)
+
+  event.waitUntil(
+    networkRequest
       .then((response) => {
-        const copy = response.clone()
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy))
-        return response
+        if (!response.ok) return undefined
+
+        const responseForCache = response.clone()
+        return caches
+          .open(CACHE_NAME)
+          .then((cache) => cache.put(cacheKey, responseForCache))
       })
-      .catch(() =>
-        caches
-          .match(event.request)
-          .then((cached) => cached || caches.match(SCOPE_URL)),
-      ),
+      .catch(() => undefined),
+  )
+
+  event.respondWith(
+    networkRequest.catch(() =>
+      caches
+        .match(cacheKey)
+        .then((cached) => cached || caches.match(SCOPE_URL)),
+    ),
   )
 })
