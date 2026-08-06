@@ -4,6 +4,8 @@ import { PreferenceActions } from './components/PreferenceActions'
 import { RegionPickerDialog } from './components/RegionPickerDialog'
 import { ResultRow } from './components/ResultRow'
 import { BEIJING_TIME_ZONE, TIME_ZONES } from './data/timeZones'
+import { useClockHistory } from './hooks/useClockHistory'
+import { useClockHistoryShortcuts } from './hooks/useClockHistoryShortcuts'
 import { UI_TEXT } from './i18n'
 import { writeClipboardText } from './lib/clipboard'
 import {
@@ -16,7 +18,6 @@ import { loadPreferences, savePreferences } from './lib/preferences'
 import {
   convertInstant,
   formatEditableDateTimeInput,
-  getNowInstant,
   makeCopyText,
   parseEditableDateTime,
   resolveWallTime,
@@ -32,7 +33,7 @@ type EditSubmission =
   | { status: 'needs-choice' }
   | {
       status: 'committed'
-      instant: ReturnType<typeof getNowInstant>
+      instant: Extract<WallTimeResolution, { status: 'valid' }>['instant']
     }
 
 function App() {
@@ -43,8 +44,15 @@ function App() {
       ),
     [],
   )
-  const [referenceInstant, setReferenceInstant] = useState(() => getNowInstant())
-  const [isLive, setIsLive] = useState(true)
+  const {
+    commitInstant,
+    instant: referenceInstant,
+    isLive,
+    redo,
+    refreshLive,
+    resetToNow: resetClockToNow,
+    undo,
+  } = useClockHistory()
   const [locale, setLocale] = useState(initialPreferences.locale)
   const [selectedZoneIds, setSelectedZoneIds] = useState(
     initialPreferences.zoneIds,
@@ -69,7 +77,22 @@ function App() {
   const deferredActionAfterAmbiguity = useRef<DeferredAction | undefined>(
     undefined,
   )
-  const resumeLiveAfterCancel = useRef(false)
+
+  const clearFeedbackAfterHistoryShortcut = useCallback(() => {
+    pendingInteractionCommit.current = undefined
+    deferredActionAfterAmbiguity.current = undefined
+    window.clearTimeout(copyStatusTimer.current)
+    window.clearTimeout(resetFeedbackTimer.current)
+    setCopyStatus('idle')
+    setResetFeedback(false)
+  }, [])
+
+  useClockHistoryShortcuts({
+    blocked: Boolean(editingZone) || regionPickerOpen,
+    onApplied: clearFeedbackAfterHistoryShortcut,
+    onRedo: redo,
+    onUndo: undo,
+  })
 
   const text = UI_TEXT[locale]
   const allResults = useMemo(
@@ -91,12 +114,10 @@ function App() {
   }, [locale, selectedZoneIds])
 
   useEffect(() => {
-    if (!isLive) return
+    if (!isLive || editingZone) return
 
-    return startBrowserMinuteTicker(() => {
-      setReferenceInstant(getNowInstant())
-    })
-  }, [isLive])
+    return startBrowserMinuteTicker(refreshLive)
+  }, [editingZone, isLive, refreshLive])
 
   useEffect(
     () => () => {
@@ -145,12 +166,6 @@ function App() {
     const result = visibleResults.find((item) => item.id === zoneId)
     if (!result) return
 
-    if (pendingCommit) {
-      resumeLiveAfterCancel.current = false
-    } else if (!editingZone) {
-      resumeLiveAfterCancel.current = isLive
-    }
-    setIsLive(false)
     setEditingZone(zoneId)
     setEditValue(formatEditableDateTimeInput(result.dateTimeValue))
     setEditError(null)
@@ -163,11 +178,9 @@ function App() {
 
   function cancelEdit(restoreFocus = false) {
     const cancelledZone = editingZone
-    const shouldResumeLive = resumeLiveAfterCancel.current
     deferredActionAfterAmbiguity.current = undefined
     clearEditState()
-    setIsLive(shouldResumeLive)
-    if (shouldResumeLive) setReferenceInstant(getNowInstant())
+    if (isLive) refreshLive()
     if (restoreFocus && cancelledZone) restoreFocusToRow(cancelledZone)
   }
 
@@ -176,8 +189,7 @@ function App() {
     restoreFocus = false,
   ) {
     const finishedZone = editingZone ?? BEIJING_TIME_ZONE
-    setReferenceInstant(instant)
-    setIsLive(false)
+    commitInstant(instant)
     clearEditState()
     setCopyStatus('idle')
     if (restoreFocus) restoreFocusToRow(finishedZone)
@@ -226,7 +238,7 @@ function App() {
         pendingInteractionCommit.current = commit
         void handleCopy()
       },
-      reset: resetToNow,
+      reset: () => resetToNow(true),
       editZone(zoneId, commit) {
         pendingInteractionCommit.current = commit
         startEdit(zoneId)
@@ -266,14 +278,15 @@ function App() {
     setCopyStatus('idle')
   }, [])
 
-  function resetToNow() {
+  function resetToNow(coalesceCommittedEdit = false) {
+    const shouldCoalesce =
+      coalesceCommittedEdit || pendingInteractionCommit.current !== undefined
     pendingInteractionCommit.current = undefined
     deferredActionAfterAmbiguity.current = undefined
     window.clearTimeout(copyStatusTimer.current)
     window.clearTimeout(resetFeedbackTimer.current)
     clearEditState()
-    setReferenceInstant(getNowInstant())
-    setIsLive(true)
+    resetClockToNow(shouldCoalesce)
     setCopyStatus('idle')
     setResetSequence((sequence) => sequence + 1)
     setResetFeedback(true)
@@ -386,7 +399,7 @@ function App() {
         isLive={isLive}
         locale={locale}
         onCopy={() => void handleCopy()}
-        onReset={resetToNow}
+        onReset={() => resetToNow()}
         resetFeedback={resetFeedback}
         resetSequence={resetSequence}
       />

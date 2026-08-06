@@ -16,7 +16,7 @@ describe('deferred action replay', () => {
     expect(handlers.copy).toHaveBeenCalledWith(commit)
 
     replayDeferredAction({ type: 'reset' }, commit, handlers)
-    expect(handlers.reset).toHaveBeenCalledOnce()
+    expect(handlers.reset).toHaveBeenCalledWith(commit)
 
     replayDeferredAction(
       { type: 'edit-zone', zoneId: 'America/Los_Angeles' },

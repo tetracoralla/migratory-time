@@ -10,7 +10,7 @@ interface DeferredActionHandlers<TCommit> {
   editZone: (zoneId: string, commit: TCommit) => void
   language: () => void
   regions: () => void
-  reset: () => void
+  reset: (commit: TCommit) => void
 }
 
 export function getDeferredAction(
@@ -41,7 +41,7 @@ export function replayDeferredAction<TCommit>(
   if (action?.type === 'copy') {
     handlers.copy(commit)
   } else if (action?.type === 'reset') {
-    handlers.reset()
+    handlers.reset(commit)
   } else if (action?.type === 'language') {
     handlers.language()
   } else if (action?.type === 'regions') {

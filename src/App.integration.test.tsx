@@ -1,6 +1,14 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -25,7 +33,10 @@ beforeEach(() => {
   })
 })
 
-afterEach(() => cleanup())
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 async function enterTime(
   user: ReturnType<typeof userEvent.setup>,
@@ -180,5 +191,81 @@ describe('application editing flow', () => {
     expect(
       container.querySelector('[data-zone="Asia/Shanghai"] time')?.textContent,
     ).toBe(timeBefore)
+  })
+
+  it('undoes and redoes committed times without adding visible controls', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    const firstInput = await enterTime(user, '北京时间', '202608051213')
+    await user.type(firstInput, '{Enter}')
+    expect(
+      container.querySelector('[data-zone="Asia/Shanghai"] time')?.textContent,
+    ).toBe('12:13')
+
+    const secondInput = await enterTime(user, '北京时间', '202608051415')
+    await user.type(secondInput, '{Enter}')
+    expect(
+      container.querySelector('[data-zone="Asia/Shanghai"] time')?.textContent,
+    ).toBe('14:15')
+
+    fireEvent.keyDown(window, { key: 'z', metaKey: true })
+    expect(
+      container.querySelector('[data-zone="Asia/Shanghai"] time')?.textContent,
+    ).toBe('12:13')
+
+    fireEvent.keyDown(window, { key: 'z', metaKey: true, shiftKey: true })
+    expect(
+      container.querySelector('[data-zone="Asia/Shanghai"] time')?.textContent,
+    ).toBe('14:15')
+
+    expect(screen.queryByText('撤回')).toBeNull()
+    expect(screen.queryByText('重做')).toBeNull()
+  })
+
+  it('keeps input undo separate from clock undo', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    const committedInput = await enterTime(user, '北京时间', '202608051213')
+    await user.type(committedInput, '{Enter}')
+
+    const draftInput = await enterTime(user, '北京时间', '202608051415')
+    fireEvent.keyDown(draftInput, { key: 'z', metaKey: true })
+
+    expect(screen.getByRole('textbox')).toBe(draftInput)
+    fireEvent.keyDown(draftInput, { key: 'Escape' })
+    expect(
+      container.querySelector('[data-zone="Asia/Shanghai"] time')?.textContent,
+    ).toBe('12:13')
+  })
+
+  it('keeps reset undo available after its feedback disappears', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const { container } = render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: '编辑北京时间' }))
+    const input = screen.getByRole('textbox', {
+      name: '编辑北京时间的日期和时间',
+    })
+    fireEvent.change(input, { target: { value: '202608051213' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.click(screen.getByRole('button', { name: '恢复到现在' }))
+
+    expect(screen.getByRole('status').textContent).toContain('已恢复到现在')
+    act(() => vi.advanceTimersByTime(2_000))
+    expect(screen.queryByRole('status')).toBeNull()
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true })
+    expect(
+      container.querySelector('[data-zone="Asia/Shanghai"] time')?.textContent,
+    ).toBe('12:13')
+
+    fireEvent.keyDown(window, { key: 'y', ctrlKey: true })
+    expect(
+      screen.getByRole('button', { name: '恢复到现在' }).getAttribute(
+        'aria-pressed',
+      ),
+    ).toBe('true')
   })
 })
