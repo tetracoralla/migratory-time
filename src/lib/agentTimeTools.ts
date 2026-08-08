@@ -42,6 +42,12 @@ export interface AgentConvertedTime {
   shareUrl: string
 }
 
+export interface AgentSourceOccurrence {
+  abbreviation: string
+  timeZone: string
+  utcOffset: string
+}
+
 export interface ConvertedTimeResult extends AgentConvertedTime {
   source: {
     localDateTime: string
@@ -58,6 +64,7 @@ export interface AmbiguousTimeResult {
   candidates: Array<
     AgentConvertedTime & {
       choice: 'earlier' | 'later'
+      sourceOccurrence: AgentSourceOccurrence
     }
   >
   source: {
@@ -230,6 +237,25 @@ function makeConvertedTime(
   }
 }
 
+function makeSourceOccurrence(
+  instant: Temporal.Instant,
+  sourceTimeZone: string,
+  locale: Locale,
+): AgentSourceOccurrence {
+  const sourceResult = convertInstant(instant, locale).find(
+    (result) => result.id === sourceTimeZone,
+  )
+  if (!sourceResult) {
+    throw new Error(`Missing source result for ${sourceTimeZone}`)
+  }
+
+  return {
+    abbreviation: sourceResult.timeZoneAbbreviation,
+    timeZone: sourceResult.id,
+    utcOffset: sourceResult.utcOffsetLabel,
+  }
+}
+
 export function convertTime(input: ConvertTimeInput): ConvertTimeResult {
   const locale = input.locale ?? 'en'
   const disambiguation = input.disambiguation ?? 'reject'
@@ -266,10 +292,20 @@ export function convertTime(input: ConvertTimeInput): ConvertTimeResult {
           {
             choice: 'earlier',
             ...makeConvertedTime(resolution.earlier, targetTimeZones, locale),
+            sourceOccurrence: makeSourceOccurrence(
+              resolution.earlier,
+              sourceTimeZone,
+              locale,
+            ),
           },
           {
             choice: 'later',
             ...makeConvertedTime(resolution.later, targetTimeZones, locale),
+            sourceOccurrence: makeSourceOccurrence(
+              resolution.later,
+              sourceTimeZone,
+              locale,
+            ),
           },
         ],
         source,

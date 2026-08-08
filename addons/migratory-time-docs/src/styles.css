@@ -118,6 +118,13 @@ input {
   padding: 0;
 }
 
+.docs-load-error {
+  margin: 2px 0 10px;
+  color: #a33a2b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .docs-time-row {
   min-height: 56px;
   border-top: 1px solid var(--line);

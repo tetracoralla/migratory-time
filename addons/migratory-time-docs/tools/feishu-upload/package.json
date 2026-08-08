@@ -1,0 +1,11 @@
+{
+  "name": "migratory-time-feishu-upload-tool",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "upload": "node scripts/upload.mjs"
+  },
+  "devDependencies": {
+    "@lark-opdev/cli": "3.4.4"
+  }
+}

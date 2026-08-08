@@ -10,9 +10,17 @@
 
 个人身份创建成功后：
 
+The normal install and build use the same maintained Vite toolchain as the main app and do not install the legacy Feishu CLI dependency tree:
+
 ```bash
-npm install
+npm ci
 npm run build
+```
+
+The current official upload CLI still contains known vulnerable development dependencies, so it is isolated under `tools/feishu-upload` and is never installed or executed by the normal build. Only for a reviewed release, on a trusted network and with trusted source, install that subproject and run the fixed-output upload wrapper:
+
+```bash
+npm --prefix tools/feishu-upload ci
 npm run upload
 ```
 

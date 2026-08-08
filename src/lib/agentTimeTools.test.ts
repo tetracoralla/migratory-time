@@ -44,7 +44,7 @@ describe('agent time tools', () => {
     const result = convertTime({
       localDateTime: '2026-11-01 01:30',
       sourceTimeZone: 'America/New_York',
-      targetTimeZones: ['America/New_York'],
+      targetTimeZones: ['Asia/Shanghai'],
     })
 
     expect(result.status).toBe('ambiguous')
@@ -54,11 +54,19 @@ describe('agent time tools', () => {
       'earlier',
       'later',
     ])
-    expect(
-      result.candidates.map(
-        (candidate) => candidate.results[0].abbreviation,
-      ),
-    ).toEqual(['EDT', 'EST'])
+    expect(result.candidates.map((candidate) => candidate.sourceOccurrence)).toEqual([
+      {
+        abbreviation: 'EDT',
+        timeZone: 'America/New_York',
+        utcOffset: 'UTC−4',
+      },
+      {
+        abbreviation: 'EST',
+        timeZone: 'America/New_York',
+        utcOffset: 'UTC−5',
+      },
+    ])
+    expect(result.candidates[0].results[0].timeZone).toBe('Asia/Shanghai')
     expect(
       getTemporal().Instant.from(result.candidates[1].instant)
         .epochMilliseconds -

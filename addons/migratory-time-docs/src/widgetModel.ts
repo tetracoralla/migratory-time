@@ -1,4 +1,5 @@
 import { TIME_ZONES } from '../../../src/data/timeZones'
+import { getTemporal } from '../../../src/lib/temporal'
 
 export const WIDGET_RECORD_VERSION = 1
 
@@ -10,6 +11,16 @@ export interface WidgetRecord {
 }
 
 const zoneIdSet = new Set(TIME_ZONES.map((zone) => zone.id))
+
+function normalizeInstant(value: unknown, fallback: string) {
+  if (typeof value !== 'string') return fallback
+
+  try {
+    return getTemporal().Instant.from(value).toString()
+  } catch {
+    return fallback
+  }
+}
 
 export function createDefaultWidgetRecord(now = new Date()): WidgetRecord {
   return {
@@ -28,11 +39,7 @@ export function normalizeWidgetRecord(
   if (!value || typeof value !== 'object') return fallback
 
   const candidate = value as Partial<WidgetRecord>
-  const instant =
-    typeof candidate.instant === 'string' &&
-    !Number.isNaN(Date.parse(candidate.instant))
-      ? candidate.instant
-      : fallback.instant
+  const instant = normalizeInstant(candidate.instant, fallback.instant)
   const stageLabel =
     typeof candidate.stageLabel === 'string'
       ? candidate.stageLabel.slice(0, 40)

@@ -24,12 +24,14 @@ const copy = {
     untitled: '时间节点',
     regions: '显示地区',
     invalid: '日期或时间无效',
+    loadFailed: '无法连接文档，当前为只读模式',
   },
   en: {
     stage: 'Stage name',
     untitled: 'Time milestone',
     regions: 'Regions',
     invalid: 'Invalid date or local time',
+    loadFailed: 'Could not connect to the document. Read-only mode.',
   },
 } as const
 
@@ -58,6 +60,7 @@ export default function App() {
   )
   const [ready, setReady] = useState(false)
   const [editable, setEditable] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [editingZoneId, setEditingZoneId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [editError, setEditError] = useState(false)
@@ -105,19 +108,22 @@ export default function App() {
       )
       if (!active) return
       setEditable(permission.editable)
-      setReady(true)
       await docsApi.Record.onRecordChange(handleRecordChange)
       await docsApi.LifeCycle.notifyAppReady()
+      if (!active) return
+      setLoadFailed(false)
+      setReady(true)
     })().catch(() => {
       if (active) {
         setReady(true)
-        setEditable(true)
+        setEditable(false)
+        setLoadFailed(true)
       }
     })
 
     return () => {
       active = false
-      void docsApi.Record.offRecordChange(handleRecordChange)
+      void docsApi.Record.offRecordChange(handleRecordChange).catch(() => undefined)
     }
   }, [])
 
@@ -259,6 +265,12 @@ export default function App() {
           ) : null}
         </div>
       </header>
+
+      {loadFailed ? (
+        <p className="docs-load-error" role="alert">
+          {localCopy.loadFailed}
+        </p>
+      ) : null}
 
       <ol className="docs-time-list">
         {results.map((result) => (

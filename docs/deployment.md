@@ -24,7 +24,20 @@ npm run build
 lark-cli apps +update --app-id app_17bgxtewh4w --name "Migratory Time" --description "openAdam 开源的双语世界时钟与时区换算工具" --as user --profile personal-feishu
 lark-cli apps +html-publish --app-id app_17bgxtewh4w --path ./dist --as user --profile personal-feishu
 lark-cli apps +access-scope-set --app-id app_17bgxtewh4w --scope public --require-login=false --as user --profile personal-feishu
+npm run check:deployments
 ```
+
+`check:deployments` 会逐个读取本地 `dist/` 文件，并确认 GitHub Pages 与妙搭两个发布入口的对应文件 SHA-256 完全一致。只检查入口 HTML 或页面可打开不算发布完成。
+
+## Codex 插件发布验收
+
+更新插件后必须使用插件缓存版本更新和重新安装流程；运行中的旧任务不会热加载新的 Skill 或 MCP 工具。重新安装完成后运行：
+
+```bash
+npm run check:codex-plugin
+```
+
+该检查会核对已安装插件版本与仓库版本、确认 `migratory_time` 已启用，并启动一个全新的临时 Codex 任务，要求它只调用一次 `current_times`。只有新任务真实完成工具调用且返回北京与欧洲中部两个结果时才通过；独立 MCP 连接检查不能替代这一步。
 
 ## 本地安装
 
@@ -44,3 +57,5 @@ npm run local
 5. 隐藏一个地区后复制，确认剪贴板只包含当前可见地区。
 6. 切换中英文，确认时刻不变且英文列表显示动态缩写。
 7. 成功在线打开一次后断网重启，确认仍可换算和复制。
+8. 妙搭发布后运行 `npm run check:deployments`，确认妙搭和 GitHub Pages 都与本地 `dist/` 逐文件一致。
+9. 插件重新安装后运行 `npm run check:codex-plugin`，确认全新 Codex 任务实际调用领域工具，而不是 Web、Shell 或模型手算。

@@ -18,12 +18,15 @@ export default defineConfig({
     },
   },
   plugins: [react()],
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   test: {
     environment: 'node',
     include: [
       'src/**/*.test.{ts,tsx}',
       'tests/**/*.test.ts',
-      'addons/**/*.test.ts',
+      'addons/**/*.test.{ts,tsx}',
     ],
     setupFiles: ['./tests/setup.ts'],
   },

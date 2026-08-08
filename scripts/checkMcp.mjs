@@ -65,6 +65,18 @@ try {
     'Europe/Berlin',
   )
 
+  const unknownInput = await client.callTool({
+    arguments: {
+      locations: ['Asia/Shanghai'],
+    },
+    name: 'current_times',
+  })
+  assert.equal(unknownInput.isError, true)
+  assert.match(
+    unknownInput.content?.[0]?.text ?? '',
+    /Unrecognized key|additional properties/i,
+  )
+
   const converted = await client.callTool({
     arguments: {
       localDateTime: '2026-08-03 16:30',
@@ -81,16 +93,23 @@ try {
     arguments: {
       localDateTime: '2026-11-01 01:30',
       sourceTimeZone: 'America/New_York',
-      targetTimeZones: ['America/New_York'],
+      targetTimeZones: ['Asia/Shanghai'],
     },
     name: 'convert_time',
   })
   assert.equal(ambiguous.structuredContent?.status, 'ambiguous')
   assert.deepEqual(
     ambiguous.structuredContent?.candidates?.map(
-      (candidate) => candidate.results[0].abbreviation,
+      (candidate) =>
+        `${candidate.sourceOccurrence.abbreviation} ${candidate.sourceOccurrence.utcOffset}`,
     ),
-    ['EDT', 'EST'],
+    ['EDT UTC−4', 'EST UTC−5'],
+  )
+  assert.deepEqual(
+    ambiguous.structuredContent?.candidates?.map(
+      (candidate) => candidate.results[0].timeZone,
+    ),
+    ['Asia/Shanghai', 'Asia/Shanghai'],
   )
 
   const invalid = await client.callTool({
@@ -103,7 +122,7 @@ try {
   assert.equal(invalid.isError, true)
   assert.match(invalid.content?.[0]?.text ?? '', /^INVALID_INPUT:/)
 
-  console.log('MCP runtime check passed: discovery, alias-first one-call routes, all tools, conversion, DST ambiguity, and invalid-zone handling.')
+  console.log('MCP runtime check passed: discovery, strict one-call inputs, alias-first routes, all tools, conversion, DST ambiguity, and invalid-zone handling.')
 } finally {
   await client.close()
 }

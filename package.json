@@ -16,6 +16,8 @@
     "build": "npm run build:web && npm run build:mcp",
     "build:web": "tsc --noEmit && vite build && node scripts/checkBundle.mjs",
     "build:mcp": "node scripts/buildMcp.mjs",
+    "check:codex-plugin": "node scripts/checkCodexPlugin.mjs",
+    "check:deployments": "node scripts/checkDeployments.mjs",
     "check:mcp": "npm run build:mcp && node scripts/checkMcp.mjs",
     "local": "npm run build && vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "preview": "vite preview",

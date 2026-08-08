@@ -49,11 +49,18 @@ const sourceSchema = z.object({
   timeZone: z.string(),
 })
 
+const sourceOccurrenceSchema = z.object({
+  abbreviation: z.string(),
+  timeZone: z.string(),
+  utcOffset: z.string(),
+})
+
 const convertTimeOutputSchema = z.object({
   candidates: z
     .array(
       convertedTimeSchema.extend({
         choice: z.enum(['earlier', 'later']),
+        sourceOccurrence: sourceOccurrenceSchema,
       }),
     )
     .optional(),
@@ -93,12 +100,7 @@ function summarizeConversion(result: ConvertTimeResult | CurrentTimesResult) {
 
   if (result.status === 'ambiguous') {
     const choices = result.candidates.map((candidate) => {
-      const sourceResult = candidate.results.find(
-        (zone) => zone.timeZone === result.source.timeZone,
-      )
-      const sourceDescription = sourceResult
-        ? `${sourceResult.abbreviation} ${sourceResult.utcOffset}`
-        : candidate.instant
+      const sourceDescription = `${candidate.sourceOccurrence.abbreviation} ${candidate.sourceOccurrence.utcOffset}`
       return `${candidate.choice}: ${sourceDescription} (${candidate.instant})`
     })
     return `This local time occurs twice. Ask the user to choose earlier or later.\n${choices.join('\n')}`
@@ -154,7 +156,7 @@ export function createMigratoryTimeServer() {
           'Source region alias or IANA time zone, such as 北京时间, US Pacific, Asia/Shanghai, or pt.',
         ),
         targetTimeZones: targetTimeZonesSchema,
-      }),
+      }).strict(),
       outputSchema: convertTimeOutputSchema,
       title: 'Convert time zones',
     },
@@ -177,7 +179,7 @@ export function createMigratoryTimeServer() {
       inputSchema: z.object({
         locale: localeSchema,
         targetTimeZones: targetTimeZonesSchema,
-      }),
+      }).strict(),
       outputSchema: convertedTimeSchema.extend({
         status: z.literal('converted'),
       }),
@@ -199,7 +201,7 @@ export function createMigratoryTimeServer() {
       annotations: readOnlyAnnotations,
       description:
         'List the exact IANA time zones, localized labels, and daylight/standard abbreviations supported by Migratory Time. Use this before conversion when a requested region is unclear.',
-      inputSchema: z.object({}),
+      inputSchema: z.object({}).strict(),
       outputSchema: listTimeZonesOutputSchema,
       title: 'List supported time zones',
     },
