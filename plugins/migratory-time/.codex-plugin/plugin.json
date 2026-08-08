@@ -1,0 +1,39 @@
+{
+  "name": "migratory-time",
+  "version": "1.1.0+codex.20260808063030",
+  "description": "Get current regional times and exact daylight-saving-aware conversions in one call.",
+  "author": {
+    "name": "openAdam",
+    "url": "https://github.com/tetracoralla"
+  },
+  "homepage": "https://tetracoralla.github.io/migratory-time/",
+  "repository": "https://github.com/tetracoralla/migratory-time",
+  "license": "Apache-2.0",
+  "keywords": [
+    "time-zone",
+    "world-clock",
+    "daylight-saving-time",
+    "scheduling"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Migratory Time",
+    "shortDescription": "Get current times or convert dates across regions.",
+    "longDescription": "Give Codex one-call current times and deterministic, daylight-saving-aware conversion for China, US Eastern, US Pacific, the United Kingdom, and Central Europe, including ordinary Chinese and English region names.",
+    "developerName": "openAdam",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ],
+    "websiteURL": "https://tetracoralla.github.io/migratory-time/",
+    "brandColor": "#241A5E",
+    "composerIcon": "./assets/migratory-color.png",
+    "logo": "./assets/migratory-color.png",
+    "defaultPrompt": [
+      "Convert 2026-08-17 09:00 US Pacific time for Beijing and the UK.",
+      "What time is it now in all Migratory Time regions?",
+      "List the time zones supported by Migratory Time."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}
