@@ -22,6 +22,7 @@ describe('service worker cache behavior', () => {
           'migratory-time-v0',
           'migratory-time-v1',
           'migratory-time-v2',
+          'migratory-time-v3',
           'time-zone-app-v6',
           'time-zone-app-v7',
           'time-zone-app-v8',
@@ -58,6 +59,8 @@ describe('service worker cache behavior', () => {
     expect(deleted).toEqual([
       'migratory-time-v0',
       'migratory-time-v1',
+      'migratory-time-v2',
+      'migratory-time-v3',
       'time-zone-app-v6',
       'time-zone-app-v7',
       'time-zone-app-v8',

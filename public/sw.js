@@ -1,6 +1,6 @@
 const CACHE_PREFIX = 'migratory-time-'
 const LEGACY_CACHE_PREFIX = 'time-zone-app-'
-const CACHE_NAME = `${CACHE_PREFIX}v2`
+const CACHE_NAME = `${CACHE_PREFIX}v4`
 const SCOPE_URL = new URL('./', self.location.href)
 const INDEX_URL = new URL('index.html', SCOPE_URL)
 
@@ -17,7 +17,6 @@ async function cacheAppShell() {
     new URL('manifest.webmanifest', SCOPE_URL).href,
     new URL('icon-192.png', SCOPE_URL).href,
     new URL('icon-512.png', SCOPE_URL).href,
-    new URL('icon.svg', SCOPE_URL).href,
     ...assetPaths,
   ]
 

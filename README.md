@@ -39,6 +39,25 @@ npm run build
 npm run dev
 ```
 
+## Agent 与 Codex Plugin
+
+仓库同时提供一个只读、无需账号的本地 MCP 服务和 Codex Plugin。Agent 不再自行推算 UTC 偏移，而是调用与网页共用同一地区配置和换算核心的确定性工具：
+
+- `convert_time`：按来源地区换算指定日期时间；遇到夏令时重复时刻会返回前后两个候选，不擅自选择。
+- `current_times`：返回同一瞬间下所选地区的当前时间；北京、美东、美西、英国、中欧等常用中英文名称可直接一次调用，无需先查询地区列表。
+- `list_time_zones`：列出当前支持的 IANA 时区、双语名称和动态缩写。
+
+工具会同时返回结构化结果、可直接粘贴的专业格式和网页分享链接。插件源码位于 `plugins/migratory-time/`，其中的薄 Skill 只负责引导 Agent 何时调用工具以及如何处理重复或不存在的当地时刻；准确结果由 MCP 中的共享程序逻辑产生。
+
+本地验证：
+
+```bash
+npm run typecheck:mcp
+npm run check:mcp
+```
+
+本地插件通过个人市场安装时，个人市场中的 `migratory-time` 源码必须与本仓库的 `plugins/migratory-time/` 完全相同。每次更新先重新构建 MCP，再按 Codex 的本地插件更新流程写入单一 cachebuster、同步到个人市场源码并重新安装；刷新 Codex 后，应在新会话中同时看到 Skill 和 `convert_time`、`current_times`、`list_time_zones` 三个工具。
+
 ### 增加地区
 
 在 `src/data/timeZones.ts` 的 `TIME_ZONES` 中加入中文名、英文名、IANA 时区、唯一 `shareCode` 和缩写映射。列表、UTC 偏移、编辑、地区选择、复制和分享链接会共用同一配置。

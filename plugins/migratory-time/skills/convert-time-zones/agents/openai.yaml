@@ -1,0 +1,4 @@
+interface:
+  display_name: "Convert Time Zones"
+  short_description: "Get current times or convert dates across configured regions."
+  default_prompt: "Convert this date and time across the regions I need, handling daylight-saving transitions precisely."
