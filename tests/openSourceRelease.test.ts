@@ -67,4 +67,27 @@ describe('open-source release metadata', () => {
     expect(workflow).toContain('- run: npm run check')
     expect(workflow).not.toContain('deploy-pages')
   })
+
+  it('uses GitHub Pages as the only official human web deployment', async () => {
+    const readme = await readFile(
+      new URL('../README.md', import.meta.url),
+      'utf8',
+    )
+    const deploymentGuide = await readFile(
+      new URL('../docs/deployment.md', import.meta.url),
+      'utf8',
+    )
+    const deploymentCheck = await readFile(
+      new URL('../scripts/checkDeployments.mjs', import.meta.url),
+      'utf8',
+    )
+    const publicUrl = 'https://tetracoralla.github.io/migratory-time/'
+
+    expect(readme).toContain(publicUrl)
+    expect(deploymentGuide).toContain('GitHub Pages 是唯一正式网页入口')
+    expect(deploymentCheck).toContain(`githubPages: '${publicUrl}'`)
+    for (const source of [readme, deploymentGuide, deploymentCheck]) {
+      expect(source).not.toMatch(/feishuapp\.com|miaoda\.feishu\.cn/)
+    }
+  })
 })
