@@ -10,7 +10,6 @@ const distRoot = resolve(repoRoot, 'dist')
 const execFileAsync = promisify(execFile)
 const deployments = {
   githubPages: 'https://tetracoralla.github.io/migratory-time/',
-  miaoda: 'https://wto1touj2p.feishuapp.com/app/app_17bgxtewh4w/',
 }
 const removedPaths = ['icon.svg']
 

@@ -19,8 +19,7 @@
 
 ## 在线与本地使用
 
-- GitHub Pages：<https://tetracoralla.github.io/migratory-time/>
-- 飞书妙搭：<https://wto1touj2p.feishuapp.com/app/app_17bgxtewh4w>
+在线使用：<https://tetracoralla.github.io/migratory-time/>
 
 本地运行：
 
