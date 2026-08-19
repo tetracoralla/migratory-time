@@ -56,4 +56,15 @@ describe('open-source release metadata', () => {
     expect(workflow).toContain('- run: npm run check')
     expect(workflow).not.toContain('- run: npm test\n')
   })
+
+  it('runs the complete repository check on pull requests without deploying', async () => {
+    const workflow = await readFile(
+      new URL('../.github/workflows/ci.yml', import.meta.url),
+      'utf8',
+    )
+
+    expect(workflow).toContain('pull_request:')
+    expect(workflow).toContain('- run: npm run check')
+    expect(workflow).not.toContain('deploy-pages')
+  })
 })
