@@ -40,3 +40,6 @@ export type WallTimeResolution =
   | {
       status: 'nonexistent'
     }
+  | {
+      status: 'unsupported'
+    }

@@ -1,7 +1,7 @@
 {
   "name": "migratory-time",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A minimal bilingual world clock and time-zone converter by openAdam.",
   "author": "openAdam",
   "license": "Apache-2.0",
@@ -10,12 +10,18 @@
     "type": "git",
     "url": "https://github.com/tetracoralla/migratory-time.git"
   },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "npm run build:web && npm run build:mcp",
     "build:web": "tsc --noEmit && vite build && node scripts/checkBundle.mjs",
     "build:mcp": "node scripts/buildMcp.mjs",
+    "capability:check": "npm run build:mcp && node scripts/exportCapabilityProvider.mjs --check && node scripts/checkCapabilityAdapter.mjs",
+    "capability:export": "npm run build:mcp && node scripts/exportCapabilityProvider.mjs --write",
+    "check": "npm test && npm run build:web && npm run typecheck:mcp && npm run check:mcp && npm run capability:check",
     "check:codex-plugin": "node scripts/checkCodexPlugin.mjs",
     "check:deployments": "node scripts/checkDeployments.mjs",
     "check:mcp": "npm run build:mcp && node scripts/checkMcp.mjs",
@@ -28,6 +34,8 @@
   "dependencies": {
     "@js-temporal/polyfill": "^0.5.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "zod": "^4.4.3"

@@ -264,6 +264,11 @@ function App() {
       return { status: 'invalid' }
     }
 
+    if (resolution.status === 'unsupported') {
+      setEditError(text.unsupportedDateTime)
+      return { status: 'invalid' }
+    }
+
     if (resolution.status === 'ambiguous') {
       setEditError(null)
       setAmbiguousResolution(resolution)

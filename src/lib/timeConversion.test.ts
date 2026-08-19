@@ -6,6 +6,7 @@ import {
   parseEditableDateTime,
   resolveWallTime,
 } from './timeConversion'
+import { getTemporal } from './temporal'
 
 describe('time zone conversion', () => {
   it('converts the primary Beijing workflow across summer time zones', () => {
@@ -80,6 +81,25 @@ describe('time zone conversion', () => {
     expect(
       resolveWallTime('2026-02-30', '12:00', 'Asia/Shanghai').status,
     ).toBe('nonexistent')
+  })
+
+  it('refuses pre-1901 wall times that need sub-minute historical offsets', () => {
+    expect(
+      resolveWallTime('1900-12-31', '12:00', 'Asia/Shanghai').status,
+    ).toBe('unsupported')
+    expect(
+      resolveWallTime('1901-01-01', '12:00', 'Asia/Shanghai').status,
+    ).toBe('valid')
+  })
+
+  it('formats historical second-level IANA offsets without decimal corruption', () => {
+    const results = convertInstant(
+      // Direct conversion remains defensive even though interactive wall-time input starts at 1901.
+      getTemporal().Instant.from('1800-01-01T12:00:00Z'),
+    )
+
+    expect(results[0].utcOffsetLabel).toBe('UTC+8:05:43')
+    expect(results[1].utcOffsetLabel).toBe('UTC−4:56:02')
   })
 
   it('builds a compact copy block with professional summer abbreviations', () => {

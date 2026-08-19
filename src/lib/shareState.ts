@@ -2,6 +2,8 @@ import type { Temporal } from '@js-temporal/polyfill'
 import { TIME_ZONES } from '../data/timeZones'
 import { getTemporal } from './temporal'
 
+const NANOSECONDS_PER_MINUTE = 60_000_000_000
+
 const ZONE_ID_BY_SHARE_CODE = new Map(
   TIME_ZONES.map((zone) => [zone.shareCode, zone.id]),
 )
@@ -19,8 +21,20 @@ function pad(value: number) {
   return String(value).padStart(2, '0')
 }
 
+function hasMinutePrecisionAcrossConfiguredZones(instant: Temporal.Instant) {
+  return TIME_ZONES.every(
+    (zone) =>
+      instant.toZonedDateTimeISO(zone.id).offsetNanoseconds %
+        NANOSECONDS_PER_MINUTE ===
+      0,
+  )
+}
+
 function encodeInstant(instant: Temporal.Instant) {
   const utc = instant.toZonedDateTimeISO('UTC')
+  if (!hasMinutePrecisionAcrossConfiguredZones(instant)) {
+    throw new RangeError('Shared time is outside the supported minute-precision range')
+  }
   return `${utc.year}${pad(utc.month)}${pad(utc.day)}T${pad(utc.hour)}${pad(utc.minute)}Z`
 }
 
@@ -29,9 +43,10 @@ function decodeInstant(value: string) {
   if (!match) return null
 
   try {
-    return getTemporal().Instant.from(
+    const instant = getTemporal().Instant.from(
       `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:00Z`,
     )
+    return hasMinutePrecisionAcrossConfiguredZones(instant) ? instant : null
   } catch {
     return null
   }

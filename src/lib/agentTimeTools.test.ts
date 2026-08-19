@@ -120,6 +120,12 @@ describe('agent time tools', () => {
     ).toThrow(/YYYY-MM-DD HH:mm/)
     expect(() =>
       convertTime({
+        localDateTime: '1900-12-31 12:00',
+        sourceTimeZone: 'Asia/Shanghai',
+      }),
+    ).toThrow(/year 1901 or later/)
+    expect(() =>
+      convertTime({
         localDateTime: '2026-08-03 16:30',
         sourceTimeZone: 'EST',
       }),
