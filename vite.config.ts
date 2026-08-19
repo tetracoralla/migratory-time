@@ -4,6 +4,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   base: './',
   build: {
+    manifest: 'asset-manifest.json',
     rollupOptions: {
       output: {
         manualChunks(id) {

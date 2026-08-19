@@ -3,6 +3,87 @@ import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 
 describe('service worker cache behavior', () => {
+  it('pre-caches dynamic build chunks from the generated asset manifest', async () => {
+    const source = await readFile(
+      new URL('../public/sw.js', import.meta.url),
+      'utf8',
+    )
+    const listeners = new Map<string, (event: unknown) => void>()
+    const cachedUrls: string[] = []
+    const cachePuts: string[] = []
+    const indexResponse = {
+      ok: true,
+      clone() {
+        return this
+      },
+      async text() {
+        return '<script type="module" src="./assets/index.js"></script>'
+      },
+    }
+    const manifestResponse = {
+      ok: true,
+      clone() {
+        return this
+      },
+      async json() {
+        return {
+          'src/main.tsx': {
+            file: 'assets/index.js',
+            css: ['assets/index.css'],
+          },
+          'src/lib/temporal.ts': {
+            file: 'assets/temporal-polyfill.js',
+            isDynamicEntry: true,
+          },
+        }
+      },
+    }
+
+    runInNewContext(source, {
+      Error,
+      URL,
+      caches: {
+        open: async () => ({
+          addAll: async (urls: string[]) => cachedUrls.push(...urls),
+          put: async (key: string | { href?: string; url?: string }) => {
+            cachePuts.push(
+              typeof key === 'string' ? key : (key.href ?? key.url ?? ''),
+            )
+          },
+        }),
+      },
+      fetch: async (request: { href?: string } | string) =>
+        String(typeof request === 'string' ? request : request.href).endsWith(
+          'asset-manifest.json',
+        )
+          ? manifestResponse
+          : indexResponse,
+      self: {
+        addEventListener(type: string, listener: (event: unknown) => void) {
+          listeners.set(type, listener)
+        },
+        clients: { claim: () => undefined },
+        location: { href: 'https://example.com/migratory-time/sw.js' },
+        skipWaiting: () => undefined,
+      },
+    })
+
+    let installation: Promise<unknown> | undefined
+    listeners.get('install')?.({
+      waitUntil(promise: Promise<unknown>) {
+        installation = promise
+      },
+    })
+    await installation
+
+    expect(cachedUrls).toContain(
+      'https://example.com/migratory-time/assets/temporal-polyfill.js',
+    )
+    expect(cachePuts).toContain(
+      'https://example.com/migratory-time/asset-manifest.json',
+    )
+  })
+
   it('deletes only outdated caches owned by this app', async () => {
     const source = await readFile(
       new URL('../public/sw.js', import.meta.url),
@@ -198,5 +279,61 @@ describe('service worker cache behavior', () => {
     await expect(responsePromise).resolves.toBe(networkResponse)
     await expect(Promise.all(backgroundWrites)).resolves.toEqual([undefined])
     expect(cacheFallbackCount).toBe(0)
+  })
+
+  it('does not substitute app-shell HTML for a missing offline module', async () => {
+    const source = await readFile(
+      new URL('../public/sw.js', import.meta.url),
+      'utf8',
+    )
+    const listeners = new Map<string, (event: unknown) => void>()
+    let fallbackRequests = 0
+    const matchOptions: Array<{ ignoreVary?: boolean } | undefined> = []
+
+    runInNewContext(source, {
+      Error,
+      URL,
+      caches: {
+        open: async () => ({ put: async () => undefined }),
+        match: async (_key: unknown, options?: { ignoreVary?: boolean }) => {
+          fallbackRequests += 1
+          matchOptions.push(options)
+          return undefined
+        },
+      },
+      fetch: async () => {
+        throw new Error('offline')
+      },
+      self: {
+        addEventListener(type: string, listener: (event: unknown) => void) {
+          listeners.set(type, listener)
+        },
+        clients: { claim: () => undefined },
+        location: { href: 'https://example.com/migratory-time/sw.js' },
+        skipWaiting: () => undefined,
+      },
+    })
+
+    let responsePromise: Promise<unknown> | undefined
+    const backgroundWrites: Promise<unknown>[] = []
+    listeners.get('fetch')?.({
+      request: {
+        destination: 'script',
+        method: 'GET',
+        mode: 'cors',
+        url: 'https://example.com/migratory-time/assets/missing.js',
+      },
+      respondWith(promise: Promise<unknown>) {
+        responsePromise = promise
+      },
+      waitUntil(promise: Promise<unknown>) {
+        backgroundWrites.push(promise)
+      },
+    })
+
+    await expect(responsePromise).rejects.toThrow(/Offline resource was not cached/)
+    await expect(Promise.all(backgroundWrites)).resolves.toEqual([undefined])
+    expect(fallbackRequests).toBe(1)
+    expect(matchOptions).toEqual([{ ignoreVary: true }])
   })
 })

@@ -42,6 +42,34 @@ describe('shared clock state', () => {
     expect(
       parseSharedLaunchState('?t=20260230T0700Z&z=cn,unknown'),
     ).toEqual({ status: 'invalid' })
+    expect(parseSharedLaunchState('?t=19001231T0700Z&z=cn')).toEqual({
+      status: 'invalid',
+    })
+    expect(() =>
+      makeShareUrl(
+        'https://example.com/migratory-time/',
+        Temporal.Instant.from('1900-12-31T07:00:00Z'),
+        ['Asia/Shanghai'],
+      ),
+    ).toThrow(/minute-precision range/)
+  })
+
+  it('shares the earliest supported Shanghai wall time across the UTC year boundary', () => {
+    const url = makeShareUrl(
+      'https://example.com/migratory-time/',
+      Temporal.ZonedDateTime.from({
+        year: 1901,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        timeZone: 'Asia/Shanghai',
+      }).toInstant(),
+      ['Asia/Shanghai', 'America/Los_Angeles'],
+    )
+
+    expect(new URL(url).searchParams.get('t')).toBe('19001231T1600Z')
+    expect(parseSharedLaunchState(new URL(url).search).status).toBe('valid')
   })
 
   it('round-trips every region from the single time-zone configuration', () => {

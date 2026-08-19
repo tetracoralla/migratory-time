@@ -127,7 +127,7 @@ function errorResult(error: unknown) {
 
 export function createMigratoryTimeServer() {
   const server = new McpServer(
-    { name: 'migratory-time', version: '1.1.0' },
+    { name: 'migratory-time', version: '1.1.1' },
     {
       instructions:
         'Use these deterministic tools for exact time-zone conversion. Never calculate offsets manually. If convert_time returns ambiguous, ask the user to choose earlier or later; if it returns nonexistent, do not substitute a different time.',
@@ -150,7 +150,9 @@ export function createMigratoryTimeServer() {
         localDateTime: z
           .string()
           .regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)
-          .describe('Local wall-clock date and time in exact YYYY-MM-DD HH:mm format.'),
+          .describe(
+            'Local wall-clock date and time in exact YYYY-MM-DD HH:mm format, in year 1901 or later.',
+          ),
         locale: localeSchema,
         sourceTimeZone: timeZoneInputSchema.describe(
           'Source region alias or IANA time zone, such as 北京时间, US Pacific, Asia/Shanghai, or pt.',

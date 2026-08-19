@@ -12,7 +12,7 @@ const transport = new StdioClientTransport({
   cwd: pluginRoot,
   stderr: 'pipe',
 })
-const client = new Client({ name: 'migratory-time-check', version: '1.1.0' })
+const client = new Client({ name: 'migratory-time-check', version: '1.1.1' })
 
 try {
   await client.connect(transport)
@@ -112,6 +112,42 @@ try {
     ['Asia/Shanghai', 'Asia/Shanghai'],
   )
 
+  const laterOccurrence = await client.callTool({
+    arguments: {
+      disambiguation: 'later',
+      localDateTime: '2026-11-01 01:30',
+      sourceTimeZone: 'America/New_York',
+      targetTimeZones: ['Asia/Shanghai'],
+    },
+    name: 'convert_time',
+  })
+  assert.equal(laterOccurrence.structuredContent?.status, 'converted')
+  assert.equal(
+    laterOccurrence.structuredContent?.instant,
+    ambiguous.structuredContent?.candidates?.[1]?.instant,
+  )
+
+  const nonexistent = await client.callTool({
+    arguments: {
+      localDateTime: '2026-03-08 02:30',
+      sourceTimeZone: 'America/New_York',
+      targetTimeZones: ['Asia/Shanghai'],
+    },
+    name: 'convert_time',
+  })
+  assert.equal(nonexistent.structuredContent?.status, 'nonexistent')
+
+  const historical = await client.callTool({
+    arguments: {
+      localDateTime: '1900-12-31 12:00',
+      sourceTimeZone: 'Asia/Shanghai',
+      targetTimeZones: ['Europe/London'],
+    },
+    name: 'convert_time',
+  })
+  assert.equal(historical.isError, true)
+  assert.match(historical.content?.[0]?.text ?? '', /^INVALID_INPUT:.*1901/)
+
   const invalid = await client.callTool({
     arguments: {
       localDateTime: '2026-08-03 16:30',
@@ -122,7 +158,7 @@ try {
   assert.equal(invalid.isError, true)
   assert.match(invalid.content?.[0]?.text ?? '', /^INVALID_INPUT:/)
 
-  console.log('MCP runtime check passed: discovery, strict one-call inputs, alias-first routes, all tools, conversion, DST ambiguity, and invalid-zone handling.')
+  console.log('MCP runtime check passed: discovery, strict one-call inputs, alias-first routes, all tools, conversion, both DST ambiguity branches, nonexistent time, historical bounds, and invalid-zone handling.')
 } finally {
   await client.close()
 }

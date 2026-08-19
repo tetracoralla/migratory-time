@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "openadam.provider-manifest.v0.1",
+  "provider": {
+    "id": "io.github.tetracoralla.migratory-time",
+    "name": "Migratory Time",
+    "version": "1.1.1",
+    "homepage": "https://tetracoralla.github.io/migratory-time/"
+  },
+  "implementations": [
+    {
+      "capabilityId": "org.openadam.time-zone.convert",
+      "capabilityVersion": "0.1.0",
+      "adapter": {
+        "protocol": "openadam.capability-jsonl.v0.1",
+        "command": "node",
+        "args": [
+          "scripts/runCapabilityAdapter.mjs"
+        ]
+      },
+      "bindings": [
+        {
+          "operationId": "convert",
+          "transport": "mcp-tool",
+          "target": "convert_time",
+          "contractSchemaDigests": {
+            "input": "sha256:b7565b2de6a7f8b8ba1aed0199d631f991c1f6814d0bc4bdaf998491b76dd5c4",
+            "output": "sha256:f4f85788e62f77b6f36317724f166686f644f00857b793854dbc1b6a758b3af0"
+          },
+          "transportSchemaDigests": {
+            "input": "sha256:39d4c6e6e3a6509b20725952a2d0cb5f8c6565a2d61502afede21d79c7f0d6de",
+            "output": "sha256:dc4ae8adb2f64ff8d54a09bcff5356341b6f19a72dd16781369f960ab360f131"
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        }
+      ]
+    }
+  ]
+}

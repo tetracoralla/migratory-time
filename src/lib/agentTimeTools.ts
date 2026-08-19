@@ -5,6 +5,7 @@ import {
   convertInstant,
   getNowInstant,
   makeCopyText,
+  MIN_SUPPORTED_YEAR,
   resolveWallTime,
 } from './timeConversion'
 import { makeShareUrl } from './shareState'
@@ -186,6 +187,9 @@ function parseLocalDateTime(localDateTime: string) {
   if (!match) {
     throw new RangeError('localDateTime must use the exact format YYYY-MM-DD HH:mm')
   }
+  if (Number(match[1]) < MIN_SUPPORTED_YEAR) {
+    throw new RangeError(`localDateTime must be in year ${MIN_SUPPORTED_YEAR} or later`)
+  }
 
   return {
     date: `${match[1]}-${match[2]}-${match[3]}`,
@@ -283,6 +287,10 @@ export function convertTime(input: ConvertTimeInput): ConvertTimeResult {
       source,
       status: 'nonexistent',
     }
+  }
+
+  if (resolution.status === 'unsupported') {
+    throw new RangeError(`localDateTime must be in year ${MIN_SUPPORTED_YEAR} or later`)
   }
 
   if (resolution.status === 'ambiguous') {

@@ -19,8 +19,9 @@ const MONTHS_EN = [
   'Nov',
   'Dec',
 ]
-const NANOSECONDS_PER_MINUTE = 60_000_000_000
+const NANOSECONDS_PER_SECOND = 1_000_000_000
 export const EDITABLE_DATE_TIME_GUIDE = 'YYYY-MM-DD HH:mm'
+export const MIN_SUPPORTED_YEAR = 1901
 
 function parseDateTime(date: string, time: string) {
   const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
@@ -60,6 +61,7 @@ export function resolveWallTime(
   try {
     const Temporal = getTemporal()
     const fields = { ...parseDateTime(date, time), timeZone }
+    if (fields.year < MIN_SUPPORTED_YEAR) return { status: 'unsupported' }
     const earlier = Temporal.ZonedDateTime.from(fields, {
       disambiguation: 'earlier',
     })
@@ -99,15 +101,19 @@ function pad(value: number) {
 }
 
 function formatUtcOffset(offsetNanoseconds: number) {
-  const minutes = offsetNanoseconds / NANOSECONDS_PER_MINUTE
-  if (minutes === 0) return 'UTC'
+  const totalSeconds = offsetNanoseconds / NANOSECONDS_PER_SECOND
+  if (totalSeconds === 0) return 'UTC'
 
-  const direction = minutes > 0 ? '+' : '−'
-  const absoluteMinutes = Math.abs(minutes)
-  const hours = Math.floor(absoluteMinutes / 60)
-  const remainingMinutes = absoluteMinutes % 60
+  const direction = totalSeconds > 0 ? '+' : '−'
+  const absoluteSeconds = Math.abs(totalSeconds)
+  const hours = Math.floor(absoluteSeconds / 3600)
+  const minutes = Math.floor((absoluteSeconds % 3600) / 60)
+  const seconds = absoluteSeconds % 60
 
-  return `UTC${direction}${hours}${remainingMinutes ? `:${pad(remainingMinutes)}` : ''}`
+  if (seconds !== 0) {
+    return `UTC${direction}${hours}:${pad(minutes)}:${pad(seconds)}`
+  }
+  return `UTC${direction}${hours}${minutes ? `:${pad(minutes)}` : ''}`
 }
 
 export function convertInstant(
