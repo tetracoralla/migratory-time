@@ -25,11 +25,13 @@ if (html.includes(temporalChunks[0])) {
 
 const mainSource = await readFile(new URL(mainFile, assetsDirectory))
 const mainGzipBytes = gzipSync(mainSource).byteLength
-const maximumInitialGzipBytes = 80 * 1024
+// The global city/country/IANA search index is part of the initial offline
+// product. Keep its deliberate v2 budget bounded instead of dropping the gate.
+const maximumInitialGzipBytes = 100 * 1024
 
 if (mainGzipBytes > maximumInitialGzipBytes) {
   throw new Error(
-    `Initial JavaScript is ${(mainGzipBytes / 1024).toFixed(2)} kB gzip; expected at most 80 kB`,
+    `Initial JavaScript is ${(mainGzipBytes / 1024).toFixed(2)} kB gzip; expected at most 100 kB`,
   )
 }
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:openadam:capability:time-zone.convert:input:v0.1",
-  "title": "Canonical time-zone conversion input",
+  "$id": "urn:openadam:capability:time-zone.convert:input:v0.2",
+  "title": "Canonical global time-zone conversion input",
   "type": "object",
   "additionalProperties": false,
   "required": ["localDateTime", "sourceTimeZone", "targetTimeZones"],
@@ -17,11 +17,12 @@
     "targetTimeZones": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 20,
       "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/timeZone"
       },
-      "description": "Named target zones in the required result order."
+      "description": "Canonical target zones in the required result order."
     },
     "disambiguation": {
       "type": "string",
@@ -35,8 +36,8 @@
       "type": "string",
       "minLength": 3,
       "maxLength": 128,
-      "pattern": "^[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)+$",
-      "description": "A named IANA time-zone identifier."
+      "pattern": "^(?:UTC|[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)+)$",
+      "description": "A canonical named IANA time-zone identifier."
     }
   }
 }

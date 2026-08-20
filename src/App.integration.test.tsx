@@ -198,6 +198,38 @@ describe('application editing flow', () => {
     ).toBeNull()
   })
 
+  it('searches, adds, persists, copies, and shares a global region', async () => {
+    const user = userEvent.setup()
+    const firstView = render(<App />)
+
+    await user.click(screen.getByRole('button', { name: '显示地区' }))
+    const picker = screen.getByRole('dialog', { name: '显示地区' })
+    const search = within(picker).getByRole('searchbox', { name: '搜索地区' })
+    await user.type(search, 'Paris')
+    await user.click(
+      within(picker).getByRole('button', { name: /Europe\/Paris/ }),
+    )
+    await user.click(within(picker).getByRole('button', { name: '关闭' }))
+
+    expect(firstView.container.querySelector('[data-zone="Europe/Paris"]')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '编辑巴黎' })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: '复制所示时间' }))
+    await waitFor(() => expect(writeClipboard).toHaveBeenCalledTimes(1))
+    expect(writeClipboard.mock.calls[0][0].split('\n')).toHaveLength(6)
+
+    await user.click(screen.getByRole('button', { name: '分享当前时间' }))
+    const share = screen.getByRole('dialog', { name: '分享' })
+    expect(
+      (within(share).getByRole('textbox', { name: '分享链接' }) as HTMLInputElement)
+        .value,
+    ).toContain('Europe%2FParis')
+    await user.click(within(share).getByRole('button', { name: '关闭' }))
+
+    firstView.unmount()
+    render(<App />)
+    expect(document.querySelector('[data-zone="Europe/Paris"]')).toBeTruthy()
+  })
+
   it('opens a shared fixed time with only its selected regions', () => {
     window.history.replaceState(
       {},
@@ -332,7 +364,7 @@ describe('application editing flow', () => {
       screen.getByRole('button', { name: 'Switch to English' }),
     )
 
-    expect(screen.getByRole('button', { name: 'Edit CST' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Edit China' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Regions' })).toBeTruthy()
     expect(container.querySelector('.result-date')?.textContent).toMatch(
       /^[A-Z][a-z]{2} \d{2} · [A-Z][a-z]{2}$/,

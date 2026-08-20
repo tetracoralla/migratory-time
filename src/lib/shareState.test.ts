@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { TIME_ZONES } from '../data/timeZones'
 import { getTemporal } from './temporal'
+import { getAllTimeZoneIds } from '../data/timeZoneRegistry'
 import {
   makeShareUrl,
   parseSharedLaunchState,
@@ -91,5 +92,46 @@ describe('shared clock state', () => {
         expect(parsed.zoneIds).toEqual([zone.id])
       }
     }
+  })
+
+  it('rejects share links carrying more than the supported region count', () => {
+    // Zone ids with "+" require percent-encoding in a query string, so the
+    // hand-built link below sticks to ids that survive unencoded.
+    const ids = getAllTimeZoneIds()
+      .filter((id) => !id.includes('+'))
+      .slice(0, 21)
+    expect(
+      parseSharedLaunchState(`?t=20260817T0700Z&z=${ids.join(',')}`).status,
+    ).toBe('invalid')
+    expect(
+      parseSharedLaunchState(
+        `?t=20260817T0700Z&z=${ids.slice(0, 20).join(',')}`,
+      ).status,
+    ).toBe('valid')
+  })
+
+  it('round-trips ordered global IANA ids while accepting legacy short codes', () => {
+    const url = makeShareUrl(
+      'https://example.com/migratory-time/',
+      Temporal.Instant.from('2026-08-17T07:00:00Z'),
+      ['Asia/Kathmandu', 'Pacific/Chatham', 'Europe/Paris'],
+    )
+
+    expect(url).toContain(
+      'z=Asia%2FKathmandu,Pacific%2FChatham,Europe%2FParis',
+    )
+    const parsed = parseSharedLaunchState(new URL(url).search)
+    expect(parsed.status).toBe('valid')
+    if (parsed.status === 'valid') {
+      expect(parsed.zoneIds).toEqual([
+        'Asia/Kathmandu',
+        'Pacific/Chatham',
+        'Europe/Paris',
+      ])
+    }
+    expect(parseSharedLaunchState('?t=20260817T0700Z&z=cn,pt')).toMatchObject({
+      status: 'valid',
+      zoneIds: ['Asia/Shanghai', 'America/Los_Angeles'],
+    })
   })
 })

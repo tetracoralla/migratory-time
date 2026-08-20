@@ -7,7 +7,7 @@ import {
 } from './preferences'
 
 describe('viewer preferences', () => {
-  it('keeps configured regions in product order and rejects unknown values', () => {
+  it('keeps the user-selected region order and rejects unknown values', () => {
     const storage = {
       getItem: vi.fn().mockReturnValue(
         JSON.stringify({
@@ -19,7 +19,7 @@ describe('viewer preferences', () => {
 
     expect(loadPreferences(storage)).toEqual({
       locale: 'en',
-      zoneIds: ['Asia/Shanghai', 'Europe/London'],
+      zoneIds: ['Europe/London', 'Asia/Shanghai'],
     })
   })
 

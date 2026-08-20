@@ -1,4 +1,7 @@
 import type { ConversionResult, Locale } from './types'
+import { DEFAULT_TIME_ZONE_IDS } from './data/timeZones'
+
+const DEFAULT_TIME_ZONE_ID_SET = new Set(DEFAULT_TIME_ZONE_IDS)
 
 export const UI_TEXT = {
   zh: {
@@ -24,15 +27,21 @@ export const UI_TEXT = {
     invalidIncomplete: '请完整输入日期和时间',
     invalidShareLink: '分享链接无效，已显示当前时间',
     unsupportedDateTime: '仅支持 1901 年及之后的日期',
+    unsupportedPrecision: '该历史时刻含秒级时区偏移，无法按分钟精确显示',
     linkCopied: '链接已复制',
     linkCopyFailed: '链接复制失败，再试一次',
     liveMode: '当前为实时模式',
     more: '更多',
+    noRegions: '没有匹配的地区',
     regions: '显示地区',
-    regionsHint: '选择列表中显示和复制的地区',
+    regionsLimit: '最多选择 20 个地区',
+    regionsMinimum: '至少保留 1 个地区',
     reset: '恢复到现在',
     resetDone: '已恢复到现在',
     resultsLabel: '各地区对应时间',
+    searchRegions: '搜索地区',
+    searchRegionsPlaceholder: '城市、国家或 IANA 时区',
+    selectedRegions: (count: number, limit: number) => `已选 ${count}/${limit}`,
     switchLanguage: 'Switch to English',
     share: '分享当前时间',
     shareDialogTitle: '分享',
@@ -66,15 +75,21 @@ export const UI_TEXT = {
     invalidIncomplete: 'Enter the complete date and time',
     invalidShareLink: 'Invalid share link. Showing the current time.',
     unsupportedDateTime: 'Dates from 1901 onward are supported',
+    unsupportedPrecision: 'This historical time has a sub-minute offset and cannot be shown exactly',
     linkCopied: 'Link copied',
     linkCopyFailed: 'Could not copy link. Try again.',
     liveMode: 'Showing the current time',
     more: 'More',
+    noRegions: 'No matching regions',
     regions: 'Regions',
-    regionsHint: 'Choose the regions shown in the list and copied text',
+    regionsLimit: 'Choose up to 20 regions',
+    regionsMinimum: 'Keep at least one region',
     reset: 'Reset to now',
     resetDone: 'Reset to now',
     resultsLabel: 'Corresponding times by region',
+    searchRegions: 'Search regions',
+    searchRegionsPlaceholder: 'City, country, or IANA time zone',
+    selectedRegions: (count: number, limit: number) => `${count}/${limit} selected`,
     switchLanguage: '切换到中文',
     share: 'Share current time',
     shareDialogTitle: 'Share',
@@ -88,12 +103,18 @@ export const UI_TEXT = {
 } as const
 
 export function getRegionLabel(result: ConversionResult, locale: Locale) {
-  return locale === 'zh' ? result.label : result.timeZoneAbbreviation
+  if (locale === 'en') return result.shortLabelEn
+  return DEFAULT_TIME_ZONE_ID_SET.has(result.id)
+    ? result.label
+    : result.shortLabel
 }
 
 export function getRegionPickerLabel(
   result: ConversionResult,
   locale: Locale,
 ) {
+  if (!DEFAULT_TIME_ZONE_ID_SET.has(result.id)) {
+    return locale === 'zh' ? result.shortLabel : result.shortLabelEn
+  }
   return locale === 'zh' ? result.label : result.labelEn
 }

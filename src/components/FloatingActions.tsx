@@ -61,7 +61,7 @@ export function FloatingActions({
             shareStatus === 'error' ? text.shareRetry : text.share
           }
           data-time-action="share"
-          title={shareStatus === 'error' ? text.shareRetry : text.share}
+          data-tooltip={shareStatus === 'error' ? text.shareRetry : text.share}
           onClick={onShare}
         >
           <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -76,7 +76,7 @@ export function FloatingActions({
           aria-label={text.reset}
           aria-pressed={isLive}
           data-time-action="reset"
-          title={isLive ? text.liveMode : text.reset}
+          data-tooltip={isLive ? text.liveMode : text.reset}
           onClick={onReset}
         >
           <span
@@ -100,7 +100,7 @@ export function FloatingActions({
                 : text.copy
           }
           data-time-action="copy"
-          title={
+          data-tooltip={
             copyStatus === 'success'
               ? text.copied
               : copyStatus === 'error'

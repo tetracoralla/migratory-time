@@ -26,7 +26,7 @@ export function PreferenceActions({
         type="button"
         aria-label={text.switchLanguage}
         data-time-action="language"
-        title={text.switchLanguage}
+        data-tooltip={text.switchLanguage}
         onClick={onToggleLocale}
       >
         <span className="language-icon" aria-hidden="true">
@@ -42,7 +42,7 @@ export function PreferenceActions({
         aria-expanded={regionsOpen}
         aria-label={text.regions}
         data-time-action="regions"
-        title={text.regions}
+        data-tooltip={text.regions}
         onClick={onOpenRegions}
       >
         <svg aria-hidden="true" viewBox="0 0 24 24">

@@ -1,5 +1,8 @@
 import type { Temporal } from '@js-temporal/polyfill'
-import { TIME_ZONES } from '../data/timeZones'
+import {
+  getDefaultTimeZoneIds,
+  getTimeZoneDefinition,
+} from '../data/timeZoneRegistry'
 import type { ConversionResult, Locale, WallTimeResolution } from '../types'
 import { getTemporal } from './temporal'
 
@@ -22,6 +25,41 @@ const MONTHS_EN = [
 const NANOSECONDS_PER_SECOND = 1_000_000_000
 export const EDITABLE_DATE_TIME_GUIDE = 'YYYY-MM-DD HH:mm'
 export const MIN_SUPPORTED_YEAR = 1901
+
+const shortZoneNameFormatters = new Map<string, Intl.DateTimeFormat>()
+
+function shortZoneNameFormatter(timeZone: string) {
+  let formatter = shortZoneNameFormatters.get(timeZone)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      timeZoneName: 'short',
+    })
+    shortZoneNameFormatters.set(timeZone, formatter)
+  }
+  return formatter
+}
+
+function formatTimeZoneAbbreviation(
+  instant: Temporal.Instant,
+  timeZone: string,
+  offsetNanoseconds: number,
+  configuredAbbreviations?: Record<string, string>,
+) {
+  const offset = formatIsoUtcOffset(offsetNanoseconds)
+  const configured = configuredAbbreviations?.[offset]
+  if (configured) return configured
+  try {
+    return (
+      shortZoneNameFormatter(timeZone)
+        .formatToParts(new Date(instant.epochMilliseconds))
+        .find((part) => part.type === 'timeZoneName')?.value ??
+      formatUtcOffset(offsetNanoseconds)
+    )
+  } catch {
+    return formatUtcOffset(offsetNanoseconds)
+  }
+}
 
 function parseDateTime(date: string, time: string) {
   const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
@@ -116,11 +154,26 @@ function formatUtcOffset(offsetNanoseconds: number) {
   return `UTC${direction}${hours}${minutes ? `:${pad(minutes)}` : ''}`
 }
 
+function formatIsoUtcOffset(offsetNanoseconds: number) {
+  const totalSeconds = offsetNanoseconds / NANOSECONDS_PER_SECOND
+  const direction = totalSeconds < 0 ? '-' : '+'
+  const absoluteSeconds = Math.abs(totalSeconds)
+  const hours = Math.floor(absoluteSeconds / 3600)
+  const minutes = Math.floor((absoluteSeconds % 3600) / 60)
+  const seconds = absoluteSeconds % 60
+  return `${direction}${pad(hours)}:${pad(minutes)}${
+    seconds ? `:${pad(seconds)}` : ''
+  }`
+}
+
 export function convertInstant(
   instant: Temporal.Instant,
   locale: Locale = 'zh',
+  zoneIds: string[] = getDefaultTimeZoneIds(),
 ): ConversionResult[] {
-  return TIME_ZONES.map((zone) => {
+  return zoneIds.map((zoneId) => {
+    const zone = getTimeZoneDefinition(zoneId, locale)
+    if (!zone) throw new RangeError(`Unknown IANA time zone: ${zoneId}`)
     const zoned = instant.toZonedDateTimeISO(zone.id)
     const dateLabel =
       locale === 'zh'
@@ -134,11 +187,27 @@ export function convertInstant(
       timeLabel,
       dateTimeLabel: `${dateLabel} ${timeLabel}`,
       dateTimeValue: `${zoned.year}-${pad(zoned.month)}-${pad(zoned.day)}T${timeLabel}`,
-      timeZoneAbbreviation:
-        zone.abbreviations[zoned.offset] ?? formatUtcOffset(zoned.offsetNanoseconds),
+      timeZoneAbbreviation: formatTimeZoneAbbreviation(
+        instant,
+        zone.id,
+        zoned.offsetNanoseconds,
+        zone.abbreviations,
+      ),
       utcOffsetLabel: formatUtcOffset(zoned.offsetNanoseconds),
     }
   })
+}
+
+export function hasMinutePrecisionAcrossTimeZones(
+  instant: Temporal.Instant,
+  zoneIds: string[],
+) {
+  return zoneIds.every(
+    (zoneId) =>
+      instant.toZonedDateTimeISO(zoneId).offsetNanoseconds %
+        (60 * NANOSECONDS_PER_SECOND) ===
+      0,
+  )
 }
 
 export function getNowInstant() {

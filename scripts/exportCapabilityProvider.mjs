@@ -33,13 +33,13 @@ try {
     provider: {
       id: 'io.github.tetracoralla.migratory-time',
       name: 'Migratory Time',
-      version: '1.1.1',
+      version: '2.0.0',
       homepage: 'https://tetracoralla.github.io/migratory-time/',
     },
     implementations: [
       {
         capabilityId: 'org.openadam.time-zone.convert',
-        capabilityVersion: '0.1.0',
+        capabilityVersion: '0.2.0',
         adapter: {
           protocol: 'openadam.capability-jsonl.v0.1',
           command: 'node',
