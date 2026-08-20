@@ -43,7 +43,7 @@ export function ResultRow({
       <span className="timeline-dot" aria-hidden="true" />
       <div className="region-block">
         <span className="region-name">{label}</span>
-        {!isEditing ? (
+        {!isEditing && label !== result.utcOffsetLabel ? (
           <span className="utc-offset">{result.utcOffsetLabel}</span>
         ) : null}
       </div>

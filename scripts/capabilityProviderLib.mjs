@@ -29,7 +29,7 @@ export async function connectMigratoryTimeClient(name) {
     cwd: pluginRoot,
     stderr: 'pipe',
   })
-  const client = new Client({ name, version: '1.1.1' })
+  const client = new Client({ name, version: '2.0.0' })
   await client.connect(transport)
   return client
 }

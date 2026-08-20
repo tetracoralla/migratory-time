@@ -50,3 +50,4 @@ export const TIME_ZONES: TimeZoneDefinition[] = [
 ]
 
 export const BEIJING_TIME_ZONE = 'Asia/Shanghai'
+export const DEFAULT_TIME_ZONE_IDS = TIME_ZONES.map((zone) => zone.id)

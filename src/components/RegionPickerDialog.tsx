@@ -1,28 +1,49 @@
-import { useEffect, useRef } from 'react'
+import type { Temporal } from '@js-temporal/polyfill'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import {
+  MAX_SELECTED_TIME_ZONES,
+  searchTimeZoneDefinitions,
+} from '../data/timeZoneRegistry'
 import { getRegionPickerLabel, UI_TEXT } from '../i18n'
-import type { ConversionResult, Locale } from '../types'
+import {
+  convertInstant,
+  hasMinutePrecisionAcrossTimeZones,
+} from '../lib/timeConversion'
+import type { Locale } from '../types'
 
 interface RegionPickerDialogProps {
+  instant: Temporal.Instant
   locale: Locale
   onClose: () => void
   onToggleZone: (zoneId: string) => void
-  results: ConversionResult[]
   selectedZoneIds: string[]
 }
 
 export function RegionPickerDialog({
+  instant,
   locale,
   onClose,
   onToggleZone,
-  results,
   selectedZoneIds,
 }: RegionPickerDialogProps) {
   const dialogRef = useRef<HTMLElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const [query, setQuery] = useState('')
   const text = UI_TEXT[locale]
+  const foundIds = useMemo(
+    () => searchTimeZoneDefinitions(query, locale, 10).map((zone) => zone.id),
+    [locale, query],
+  )
+  const results = useMemo(() => {
+    const ids = query.trim()
+      ? foundIds
+      : [...new Set([...selectedZoneIds, ...foundIds])]
+    return convertInstant(instant, locale, ids)
+  }, [foundIds, instant, locale, query, selectedZoneIds])
 
   useEffect(() => {
-    dialogRef.current?.focus()
+    searchRef.current?.focus()
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -33,7 +54,7 @@ export function RegionPickerDialog({
 
       if (event.key === 'Tab') {
         const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
-          'button:not(:disabled)',
+          'input:not(:disabled), button:not(:disabled)',
         )
         if (!focusable?.length) return
 
@@ -67,13 +88,9 @@ export function RegionPickerDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="region-picker-title"
-        aria-describedby="region-picker-description"
       >
         <header className="region-picker-header">
-          <div>
-            <h2 id="region-picker-title">{text.regions}</h2>
-            <p id="region-picker-description">{text.regionsHint}</p>
-          </div>
+          <h2 id="region-picker-title">{text.regions}</h2>
           <button
             className="region-picker-close"
             type="button"
@@ -86,10 +103,42 @@ export function RegionPickerDialog({
           </button>
         </header>
 
+        <div className="region-search-wrap">
+          <input
+            ref={searchRef}
+            className="region-search"
+            type="search"
+            value={query}
+            aria-label={text.searchRegions}
+            placeholder={text.searchRegionsPlaceholder}
+            autoComplete="off"
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+
         <div className="region-options">
           {results.map((result) => {
+            const label = getRegionPickerLabel(result, locale)
             const selected = selectedZoneIds.includes(result.id)
             const onlySelection = selected && selectedZoneIds.length === 1
+            const atLimit =
+              !selected && selectedZoneIds.length >= MAX_SELECTED_TIME_ZONES
+            const unsupportedPrecision =
+              !selected &&
+              !hasMinutePrecisionAcrossTimeZones(instant, [result.id])
+            const disabled = onlySelection || atLimit || unsupportedPrecision
+            const disabledReason = onlySelection
+              ? text.regionsMinimum
+              : atLimit
+                ? text.regionsLimit
+                : unsupportedPrecision
+                  ? text.unsupportedPrecision
+                  : undefined
+            const context = [result.countryName, result.mainCities?.[0], result.id]
+              .filter((value, index, values) =>
+                Boolean(value) && values.indexOf(value) === index,
+              )
+              .join(' · ')
 
             return (
               <button
@@ -97,14 +146,21 @@ export function RegionPickerDialog({
                 className={`region-option${selected ? ' is-selected' : ''}`}
                 type="button"
                 aria-pressed={selected}
-                disabled={onlySelection}
+                aria-label={`${label}, ${context}${disabledReason ? `, ${disabledReason}` : ''}`}
+                disabled={disabled}
+                title={disabledReason}
                 onClick={() => onToggleZone(result.id)}
               >
-                <span className="region-option-name">
-                  {getRegionPickerLabel(result, locale)}
+                <span className="region-option-identity">
+                  <span className="region-option-name">
+                    {label}
+                  </span>
+                  <span className="region-option-context">{context}</span>
                 </span>
                 <span className="region-option-code">
-                  {result.timeZoneAbbreviation}
+                  {label === result.utcOffsetLabel
+                    ? result.timeZoneAbbreviation
+                    : `${result.utcOffsetLabel} · ${result.timeZoneAbbreviation}`}
                 </span>
                 <span className="region-option-check" aria-hidden="true">
                   <svg viewBox="0 0 18 18">
@@ -114,10 +170,17 @@ export function RegionPickerDialog({
               </button>
             )
           })}
+          {!results.length ? (
+            <p className="region-options-empty" role="status">
+              {text.noRegions}
+            </p>
+          ) : null}
         </div>
 
-        <footer className="region-picker-brand">
-          Migratory Time <span>by openAdam</span>
+        <footer className="region-picker-footer">
+          <span className="region-picker-count">
+            {text.selectedRegions(selectedZoneIds.length, MAX_SELECTED_TIME_ZONES)}
+          </span>
         </footer>
       </section>
     </div>,

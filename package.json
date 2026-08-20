@@ -1,7 +1,7 @@
 {
   "name": "migratory-time",
   "private": true,
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "A minimal bilingual world clock and time-zone converter by openAdam.",
   "author": "openAdam",
   "license": "Apache-2.0",
@@ -34,6 +34,7 @@
   "dependencies": {
     "@js-temporal/polyfill": "^0.5.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@vvo/tzdb": "^6.198.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "react": "^19.2.8",

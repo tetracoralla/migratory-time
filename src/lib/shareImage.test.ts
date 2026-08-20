@@ -34,7 +34,7 @@ describe('share image', () => {
     )
   })
 
-  it('uses abbreviations for an English share card', () => {
+  it('uses concise place names for an English share card', () => {
     const englishResults = convertInstant(
       Temporal.Instant.from('2026-08-17T07:00:00Z'),
       'en',
@@ -43,10 +43,11 @@ describe('share image', () => {
     )
     const card = createShareCard(englishResults, 'en')
 
-    expect(card.svg).toContain('CST')
-    expect(card.svg).toContain('PDT')
+    expect(card.svg).toContain('China')
+    expect(card.svg).toContain('US Pacific')
     expect(card.svg).toContain('2026-08-17 · Mon')
     expect(card.svg).not.toContain('北京时间')
+    expect(card.svg).not.toContain('>CST</text>')
   })
 
   it('keeps otherwise identical calendar dates distinguishable by year', () => {

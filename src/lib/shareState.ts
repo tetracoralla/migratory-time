@@ -1,8 +1,11 @@
 import type { Temporal } from '@js-temporal/polyfill'
+import {
+  getTimeZoneDefinition,
+  MAX_SELECTED_TIME_ZONES,
+} from '../data/timeZoneRegistry'
 import { TIME_ZONES } from '../data/timeZones'
 import { getTemporal } from './temporal'
-
-const NANOSECONDS_PER_MINUTE = 60_000_000_000
+import { hasMinutePrecisionAcrossTimeZones } from './timeConversion'
 
 const ZONE_ID_BY_SHARE_CODE = new Map(
   TIME_ZONES.map((zone) => [zone.shareCode, zone.id]),
@@ -21,24 +24,15 @@ function pad(value: number) {
   return String(value).padStart(2, '0')
 }
 
-function hasMinutePrecisionAcrossConfiguredZones(instant: Temporal.Instant) {
-  return TIME_ZONES.every(
-    (zone) =>
-      instant.toZonedDateTimeISO(zone.id).offsetNanoseconds %
-        NANOSECONDS_PER_MINUTE ===
-      0,
-  )
-}
-
-function encodeInstant(instant: Temporal.Instant) {
+function encodeInstant(instant: Temporal.Instant, zoneIds: string[]) {
   const utc = instant.toZonedDateTimeISO('UTC')
-  if (!hasMinutePrecisionAcrossConfiguredZones(instant)) {
+  if (!hasMinutePrecisionAcrossTimeZones(instant, zoneIds)) {
     throw new RangeError('Shared time is outside the supported minute-precision range')
   }
   return `${utc.year}${pad(utc.month)}${pad(utc.day)}T${pad(utc.hour)}${pad(utc.minute)}Z`
 }
 
-function decodeInstant(value: string) {
+function decodeInstant(value: string, zoneIds: string[]) {
   const match = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})Z$/.exec(value)
   if (!match) return null
 
@@ -46,34 +40,34 @@ function decodeInstant(value: string) {
     const instant = getTemporal().Instant.from(
       `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:00Z`,
     )
-    return hasMinutePrecisionAcrossConfiguredZones(instant) ? instant : null
+    return hasMinutePrecisionAcrossTimeZones(instant, zoneIds) ? instant : null
   } catch {
     return null
   }
 }
 
 function encodeZoneIds(zoneIds: string[]) {
-  const selected = new Set(zoneIds)
-  const selectedZones = TIME_ZONES.filter((zone) => selected.has(zone.id))
-
-  if (selectedZones.length !== selected.size) {
-    throw new Error('Every shared region must exist in the time-zone config')
+  const encoded: string[] = []
+  for (const zoneId of zoneIds) {
+    const zone = getTimeZoneDefinition(zoneId)
+    if (!zone || encoded.includes(zone.id)) {
+      throw new Error('Every shared region must be a unique supported IANA time zone')
+    }
+    encoded.push(zone.shareCode)
   }
-
-  return selectedZones.map((zone) => zone.shareCode).join(',')
+  return encoded.join(',')
 }
 
 function decodeZoneIds(value: string) {
   const codes = value.split(',')
-  if (!codes.length || codes.some((code) => !ZONE_ID_BY_SHARE_CODE.has(code))) {
-    return null
+  if (!codes.length || codes.length > MAX_SELECTED_TIME_ZONES) return null
+  const zoneIds: string[] = []
+  for (const code of codes) {
+    const legacyId = ZONE_ID_BY_SHARE_CODE.get(code)
+    const zone = getTimeZoneDefinition(legacyId ?? code)
+    if (!zone || zoneIds.includes(zone.id)) return null
+    zoneIds.push(zone.id)
   }
-
-  const requested = new Set(codes.map((code) => ZONE_ID_BY_SHARE_CODE.get(code)))
-  const zoneIds = TIME_ZONES.map((zone) => zone.id).filter((zoneId) =>
-    requested.has(zoneId),
-  )
-
   return zoneIds.length ? zoneIds : null
 }
 
@@ -90,8 +84,8 @@ export function parseSharedLaunchState(search: string): SharedLaunchState {
     return { status: 'invalid' }
   }
 
-  const instant = decodeInstant(encodedInstant)
   const zoneIds = decodeZoneIds(encodedZoneIds)
+  const instant = zoneIds ? decodeInstant(encodedInstant, zoneIds) : null
   if (!instant || !zoneIds) return { status: 'invalid' }
 
   return { status: 'valid', instant, zoneIds }
@@ -107,6 +101,10 @@ export function makeShareUrl(
 
   const url = new URL(currentUrl)
   url.hash = ''
-  url.search = `?t=${encodeInstant(instant)}&z=${encodedZoneIds}`
+  const params = new URLSearchParams()
+  params.set('t', encodeInstant(instant, zoneIds))
+  params.set('z', encodedZoneIds)
+  // Preserve the v1 comma-separated link shape while still escaping IANA ids.
+  url.search = params.toString().replaceAll('%2C', ',')
   return url.toString()
 }

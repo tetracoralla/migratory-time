@@ -6,7 +6,7 @@ import { connectMigratoryTimeClient } from './capabilityProviderLib.mjs'
 import { repositoryRoot } from './capabilityProviderLib.mjs'
 
 const MAX_REQUEST_LINE_BYTES = 64 * 1024
-const MAX_PROVIDER_TARGETS = 5
+const MAX_PROVIDER_TARGETS = 20
 const schemaRoot = resolve(repositoryRoot, 'capabilities/schemas')
 const [inputSchema, outputSchema] = await Promise.all([
   readFile(resolve(schemaRoot, 'time-zone.convert.input.schema.json'), 'utf8').then(JSON.parse),
@@ -80,6 +80,8 @@ function providerLocalDateTime(value) {
 }
 
 function canonicalOffset(value) {
+  // The product labels a zero offset as the bare string "UTC".
+  if (value === 'UTC') return '+00:00'
   const match = /^UTC([+−-])(\d{1,2})(?::(\d{2}))?$/.exec(value)
   if (match === null) throw new Error(`Unsupported provider UTC offset ${value}`)
   const sign = match[1] === '−' ? '-' : match[1]
@@ -94,24 +96,24 @@ function canonicalTargetResult(result) {
   }
 }
 
-function runtimeContext() {
-  if (process.versions.tz === undefined) {
-    throw new Error('Node runtime does not report a time-zone database version')
+function runtimeContext(provenance) {
+  if (provenance?.timeZoneDataVersion === undefined) {
+    throw new Error('Provider result does not report a time-zone database version')
   }
   return {
     calendar: 'iso8601',
-    timeZoneDatabase: process.versions.tz,
+    timeZoneDatabase: provenance.timeZoneDataVersion,
   }
 }
 
-function canonicalResult(result) {
+function canonicalResult(result, provenance) {
   const common = {
     status: result.status,
     source: {
       localDateTime: canonicalLocalDateTime(result.source.localDateTime),
       timeZone: result.source.timeZone,
     },
-    context: runtimeContext(),
+    context: runtimeContext(provenance),
   }
   if (result.status === 'converted') {
     return {
@@ -136,6 +138,14 @@ function canonicalResult(result) {
 }
 
 function providerError(response) {
+  const structured = response.structuredContent?.result
+  if (structured?.status === 'error') {
+    return {
+      code: structured.error.code,
+      message: structured.error.message,
+      retryable: structured.error.retryable,
+    }
+  }
   const text = response.content?.find((item) => item.type === 'text')?.text ?? ''
   const match = /^([A-Z][A-Z0-9_]*):/.exec(text)
   if (match !== null) {
@@ -211,7 +221,8 @@ try {
           localDateTime: providerLocalDateTime(request.input.localDateTime),
         },
       })
-      if (response.isError === true) {
+      const providerResult = response.structuredContent?.result
+      if (response.isError === true || providerResult?.status === 'error') {
         const error = providerError(response)
         process.stdout.write(
           `${JSON.stringify({
@@ -221,7 +232,10 @@ try {
           })}\n`,
         )
       } else {
-        const result = canonicalResult(response.structuredContent)
+        const result = canonicalResult(
+          providerResult,
+          response.structuredContent?.provenance,
+        )
         assertCanonicalOutput(result)
         process.stdout.write(
           `${JSON.stringify({

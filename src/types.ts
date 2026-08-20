@@ -1,10 +1,13 @@
 import type { Temporal } from '@js-temporal/polyfill'
 
 export interface TimeZoneDefinition {
-  abbreviations: Record<string, string>
+  abbreviations?: Record<string, string>
+  countryCode?: string
+  countryName?: string
   id: string
   label: string
   labelEn: string
+  mainCities?: string[]
   shareCode: string
   shortLabel: string
   shortLabelEn: string

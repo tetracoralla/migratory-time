@@ -25,6 +25,9 @@ describe('floating actions', () => {
     expect(html).toContain('data-time-action="reset"')
     expect(html).toContain('data-time-action="copy"')
     expect(html).toContain('data-time-action="share"')
+    expect(html).toContain('data-tooltip="当前为实时模式"')
+    expect(html).toContain('data-tooltip="分享当前时间"')
+    expect(html).toContain('data-tooltip="复制所示时间"')
     expect(html).toContain('floating-action is-live')
   })
 

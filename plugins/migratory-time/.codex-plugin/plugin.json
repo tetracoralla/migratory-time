@@ -1,7 +1,7 @@
 {
   "name": "migratory-time",
-  "version": "1.1.1+codex.20260819120606",
-  "description": "Get current regional times and exact daylight-saving-aware conversions in one call.",
+  "version": "2.0.0+codex.20260820152701",
+  "description": "Get current world times and exact daylight-saving-aware conversions in one call.",
   "author": {
     "name": "openAdam",
     "url": "https://github.com/tetracoralla"
@@ -18,8 +18,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Migratory Time",
-    "shortDescription": "Get current times or convert dates across regions.",
-    "longDescription": "Give Codex one-call current times and deterministic, daylight-saving-aware conversion for China, US Eastern, US Pacific, the United Kingdom, and Central Europe, including ordinary Chinese and English region names.",
+    "shortDescription": "Get current times or convert dates worldwide.",
+    "longDescription": "Give Codex one-call current times and deterministic civil-time conversion worldwide, including ordinary city, country, region, IANA, and explicit UTC/GMT offset names, daylight-saving repeats and gaps, and exact quarter-hour offsets.",
     "developerName": "openAdam",
     "category": "Productivity",
     "capabilities": [
@@ -30,9 +30,9 @@
     "composerIcon": "./assets/migratory-color.png",
     "logo": "./assets/migratory-color.png",
     "defaultPrompt": [
-      "Convert 2026-08-17 09:00 US Pacific time for Beijing and the UK.",
-      "What time is it now in all Migratory Time regions?",
-      "List the time zones supported by Migratory Time."
+      "Convert 2026-08-17 09:00 US Pacific time for Beijing, Kathmandu, and London.",
+      "What time is it now in Beijing, Paris, and the Chatham Islands?",
+      "Find the IANA time zone for a city."
     ]
   },
   "mcpServers": "./.mcp.json"

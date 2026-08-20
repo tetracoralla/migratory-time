@@ -38,9 +38,9 @@ describe('open-source release metadata', () => {
       repository: {
         url: 'https://github.com/tetracoralla/migratory-time.git',
       },
-      version: '1.1.1',
+      version: '2.0.0',
     })
-    expect(pluginManifest.version).toMatch(/^1\.1\.1\+codex\.\d{14}$/)
+    expect(pluginManifest.version).toMatch(/^2\.0\.0\+codex\.\d{14}$/)
     expect(license).toContain('Apache License')
     expect(license).toContain('Version 2.0, January 2004')
     expect(notice).toContain('openAdam')

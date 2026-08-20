@@ -1,4 +1,8 @@
-import { TIME_ZONES } from '../data/timeZones'
+import {
+  getDefaultTimeZoneIds,
+  getTimeZoneDefinition,
+  MAX_SELECTED_TIME_ZONES,
+} from '../data/timeZoneRegistry'
 import type { Locale } from '../types'
 
 export const PREFERENCES_STORAGE_KEY = 'migratory-time-preferences-v1'
@@ -10,21 +14,20 @@ export interface Preferences {
 
 export const DEFAULT_PREFERENCES: Preferences = {
   locale: 'zh',
-  zoneIds: TIME_ZONES.map((zone) => zone.id),
+  zoneIds: getDefaultTimeZoneIds(),
 }
 
 function normalizeZoneIds(value: unknown) {
   if (!Array.isArray(value)) return DEFAULT_PREFERENCES.zoneIds
 
-  const allowed = new Set(TIME_ZONES.map((zone) => zone.id))
-  const requested = new Set(
-    value.filter((zoneId): zoneId is string =>
-      typeof zoneId === 'string' && allowed.has(zoneId),
-    ),
-  )
-  const zoneIds = TIME_ZONES.map((zone) => zone.id).filter((zoneId) =>
-    requested.has(zoneId),
-  )
+  const zoneIds: string[] = []
+  for (const valueItem of value) {
+    if (typeof valueItem !== 'string') continue
+    const definition = getTimeZoneDefinition(valueItem)
+    if (!definition || zoneIds.includes(definition.id)) continue
+    zoneIds.push(definition.id)
+    if (zoneIds.length === MAX_SELECTED_TIME_ZONES) break
+  }
 
   return zoneIds.length ? zoneIds : DEFAULT_PREFERENCES.zoneIds
 }

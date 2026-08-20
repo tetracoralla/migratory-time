@@ -4,7 +4,8 @@ import { PreferenceActions } from './components/PreferenceActions'
 import { RegionPickerDialog } from './components/RegionPickerDialog'
 import { ResultRow } from './components/ResultRow'
 import { ShareDialog } from './components/ShareDialog'
-import { BEIJING_TIME_ZONE, TIME_ZONES } from './data/timeZones'
+import { MAX_SELECTED_TIME_ZONES } from './data/timeZoneRegistry'
+import { BEIJING_TIME_ZONE } from './data/timeZones'
 import { useClockHistory } from './hooks/useClockHistory'
 import { useClockHistoryShortcuts } from './hooks/useClockHistoryShortcuts'
 import { UI_TEXT } from './i18n'
@@ -23,6 +24,7 @@ import {
 import {
   convertInstant,
   formatEditableDateTimeInput,
+  hasMinutePrecisionAcrossTimeZones,
   makeCopyText,
   parseEditableDateTime,
   resolveWallTime,
@@ -125,14 +127,10 @@ function App() {
   })
 
   const text = UI_TEXT[locale]
-  const allResults = useMemo(
-    () => convertInstant(referenceInstant, locale),
-    [locale, referenceInstant],
+  const results = useMemo(
+    () => convertInstant(referenceInstant, locale, selectedZoneIds),
+    [locale, referenceInstant, selectedZoneIds],
   )
-  const results = useMemo(() => {
-    const selected = new Set(selectedZoneIds)
-    return allResults.filter((result) => selected.has(result.id))
-  }, [allResults, selectedZoneIds])
 
   useEffect(() => {
     savePreferences(
@@ -207,8 +205,8 @@ function App() {
     const pendingCommit = pendingInteractionCommit.current
     pendingInteractionCommit.current = undefined
     const visibleResults = pendingCommit
-      ? convertInstant(pendingCommit.instant, locale)
-      : allResults
+      ? convertInstant(pendingCommit.instant, locale, [zoneId])
+      : results
     const result = visibleResults.find((item) => item.id === zoneId)
     if (!result) return
 
@@ -270,9 +268,29 @@ function App() {
     }
 
     if (resolution.status === 'ambiguous') {
+      const precisionZones = [...new Set([editingZone, ...selectedZoneIds])]
+      if (
+        !hasMinutePrecisionAcrossTimeZones(
+          resolution.earlier,
+          precisionZones,
+        ) ||
+        !hasMinutePrecisionAcrossTimeZones(resolution.later, precisionZones)
+      ) {
+        setEditError(text.unsupportedPrecision)
+        return { status: 'invalid' }
+      }
       setEditError(null)
       setAmbiguousResolution(resolution)
       return { status: 'needs-choice' }
+    }
+
+    if (
+      !hasMinutePrecisionAcrossTimeZones(resolution.instant, [
+        ...new Set([editingZone, ...selectedZoneIds]),
+      ])
+    ) {
+      setEditError(text.unsupportedPrecision)
+      return { status: 'invalid' }
     }
 
     return finishEdit(resolution.instant, restoreFocus)
@@ -333,13 +351,15 @@ function App() {
       const selected = new Set(currentZoneIds)
       if (selected.has(zoneId)) {
         if (selected.size === 1) return currentZoneIds
-        selected.delete(zoneId)
+        persistSelectedZones.current = true
+        return currentZoneIds.filter((id) => id !== zoneId)
       } else {
-        selected.add(zoneId)
+        if (currentZoneIds.length >= MAX_SELECTED_TIME_ZONES) {
+          return currentZoneIds
+        }
+        persistSelectedZones.current = true
+        return [...currentZoneIds, zoneId]
       }
-
-      persistSelectedZones.current = true
-      return TIME_ZONES.map((zone) => zone.id).filter((id) => selected.has(id))
     })
     setCopyStatus('idle')
     setShareStatus('idle')
@@ -374,9 +394,7 @@ function App() {
     setResetFeedback(false)
     setShareStatus('idle')
     const copyResults = pendingCommit
-      ? convertInstant(pendingCommit.instant, locale).filter((result) =>
-          selectedZoneIds.includes(result.id),
-        )
+      ? convertInstant(pendingCommit.instant, locale, selectedZoneIds)
       : results
     if (!copyResults.length) return
 
@@ -400,9 +418,7 @@ function App() {
     const pendingCommit = pendingInteractionCommit.current
     pendingInteractionCommit.current = undefined
     const shareInstant = pendingCommit?.instant ?? referenceInstant
-    const shareResults = convertInstant(shareInstant, locale).filter((result) =>
-      selectedZoneIds.includes(result.id),
-    )
+    const shareResults = convertInstant(shareInstant, locale, selectedZoneIds)
     if (!shareResults.length) return
 
     window.clearTimeout(copyStatusTimer.current)
@@ -518,8 +534,8 @@ function App() {
 
       {regionPickerOpen ? (
         <RegionPickerDialog
+          instant={referenceInstant}
           locale={locale}
-          results={allResults}
           selectedZoneIds={selectedZoneIds}
           onClose={closeRegionPicker}
           onToggleZone={toggleZone}

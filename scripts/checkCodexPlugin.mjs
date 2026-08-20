@@ -17,6 +17,30 @@ const escapedPluginVersion = pluginManifest.version.replace(
   /[.*+?^${}()|[\]\\]/g,
   '\\$&',
 )
+const installedSkillPath = resolve(
+  homedir(),
+  '.codex/plugins/cache/personal/migratory-time',
+  pluginManifest.version,
+  'skills/convert-time-zones/SKILL.md',
+)
+const escapedInstalledSkillPath = installedSkillPath.replace(
+  /[.*+?^${}()|[\]\\]/g,
+  '\\$&',
+)
+const fallbackSkillPath = resolve(
+  homedir(),
+  '.codex/skills/migratory-time/convert-time-zones/SKILL.md',
+)
+const escapedFallbackSkillPath = fallbackSkillPath.replace(
+  /[.*+?^${}()|[\]\\]/g,
+  '\\$&',
+)
+const escapedCodexRoot = resolve(homedir(), '.codex').replace(
+  /[.*+?^${}()|[\]\\]/g,
+  '\\$&',
+)
+const ROUTING_MODEL = 'gpt-5.6-luna'
+const ROUTING_REASONING_EFFORT = 'low'
 
 async function findCodexBinary() {
   const candidates = [
@@ -102,51 +126,90 @@ const mcpState = await runCodex(codexBinary, ['mcp', 'get', 'migratory_time'])
 assert.match(mcpState.stdout, /enabled:\s+true/)
 assert.match(mcpState.stdout, new RegExp(escapedPluginVersion))
 
-const prompt = [
-  'Call the MCP server migratory_time tool current_times exactly once.',
-  'Use exactly this JSON input:',
-  '{"locale":"zh","targetTimeZones":["北京时间","欧洲中部"]}.',
-  'Do not call web, shell, or any other tool. After the tool succeeds, answer only OK.',
-].join(' ')
-const freshTask = await runFreshCodexTask(
-  codexBinary,
-  [
-    'exec',
-    '--ephemeral',
-    '--json',
-    '--sandbox',
-    'read-only',
-    '--ignore-rules',
-    '-C',
-    repoRoot,
-    prompt,
-  ],
-  180_000,
-)
+async function assertNaturalRoute({ expectedTool, expectedZones, prompt }) {
+  const freshTask = await runFreshCodexTask(
+    codexBinary,
+    [
+      'exec',
+      '--model',
+      ROUTING_MODEL,
+      '--ephemeral',
+      '--json',
+      '--sandbox',
+      'read-only',
+      '--ignore-rules',
+      '--config',
+      `model_reasoning_effort="${ROUTING_REASONING_EFFORT}"`,
+      '-C',
+      repoRoot,
+      prompt,
+    ],
+    180_000,
+  )
+  const events = freshTask.stdout
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('{'))
+    .map((line) => JSON.parse(line))
+  const completedItems = events
+    .filter((event) => event.type === 'item.completed')
+    .map((event) => event.item)
+  const toolCalls = completedItems.filter((item) => item?.type === 'mcp_tool_call')
+  const webCalls = completedItems.filter((item) => item?.type === 'web_search')
+  const commands = completedItems.filter((item) => item?.type === 'command_execution')
+  assert.equal(
+    toolCalls.length,
+    1,
+    `Natural request must use exactly one domain call: ${prompt}`,
+  )
+  assert.equal(webCalls.length, 0, `Natural request must not use Web: ${prompt}`)
+  const installedSkillReadPattern = new RegExp(
+    `^(?:/bin/zsh -lc ")?sed -n '1,\\d+p' '?${escapedInstalledSkillPath}'?"?$`,
+  )
+  const fallbackSkillReadPattern = new RegExp(
+    `^(?:/bin/zsh -lc ")?sed -n '1,\\d+p' '?${escapedFallbackSkillPath}'?"?$`,
+  )
+  const skillFindPattern = new RegExp(
+    `^/bin/zsh -lc "find ${escapedCodexRoot} -path '\\*migratory-time\\*SKILL\\.md' -print"$`,
+  )
+  assert.ok(
+    commands.every((item) =>
+      [
+        installedSkillReadPattern,
+        fallbackSkillReadPattern,
+        skillFindPattern,
+      ].some((pattern) => pattern.test(item.command ?? '')),
+    ),
+    `Shell is allowed only to locate or read the Migratory Time skill, never as a time-data fallback: ${prompt}\nCommands: ${JSON.stringify(commands.map((item) => item.command))}`,
+  )
+  const call = toolCalls[0]
+  assert.equal(call.server, 'migratory_time')
+  assert.equal(call.tool, expectedTool)
+  assert.equal(call.status, 'completed')
+  assert.equal(call.error, null)
+  const result = call.result?.structured_content?.result
+  assert.equal(result?.status, 'converted')
+  assert.deepEqual(
+    result?.results?.map((zone) => zone.timeZone),
+    expectedZones,
+  )
+}
 
-const events = freshTask.stdout
-  .split(/\r?\n/)
-  .filter((line) => line.startsWith('{'))
-  .map((line) => JSON.parse(line))
-const toolCalls = events.filter(
-  (event) => event.type === 'item.completed' && event.item?.type === 'mcp_tool_call',
-)
-assert.equal(toolCalls.length, 1, 'Fresh Codex task must make exactly one tool call')
-
-const call = toolCalls[0].item
-assert.equal(call.server, 'migratory_time')
-assert.equal(call.tool, 'current_times')
-assert.deepEqual(call.arguments, {
-  locale: 'zh',
-  targetTimeZones: ['北京时间', '欧洲中部'],
+await assertNaturalRoute({
+  expectedTool: 'current_times',
+  expectedZones: ['Asia/Shanghai', 'Europe/Berlin'],
+  prompt: '北京和中欧现在几点？',
 })
-assert.equal(call.status, 'completed')
-assert.equal(call.error, null)
-assert.deepEqual(
-  call.result?.structured_content?.results?.map((result) => result.timeZone),
-  ['Asia/Shanghai', 'Europe/Berlin'],
-)
+await assertNaturalRoute({
+  expectedTool: 'convert_time',
+  expectedZones: ['Asia/Kathmandu', 'Pacific/Chatham'],
+  prompt: 'What is 2026-08-03 16:30 Beijing time in Kathmandu and the Chatham Islands?',
+})
+await assertNaturalRoute({
+  expectedTool: 'current_times',
+  expectedZones: ['Etc/GMT+5', 'Etc/GMT-8'],
+  prompt: 'What time is it now at UTC-5 and GMT+8?',
+})
 
 console.log(
-  `Fresh Codex task check passed: ${pluginManifest.version} exposed migratory_time.current_times and completed the dominant route in one call.`,
+  `Fresh Codex routing check passed: ${pluginManifest.version} with ${ROUTING_MODEL}/${ROUTING_REASONING_EFFORT} independently selected one Migratory Time call for ordinary Chinese current-time, English global-conversion, and explicit fixed-offset requests, with no Web or shell fallback.`,
 )
