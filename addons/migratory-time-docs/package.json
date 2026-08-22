@@ -8,8 +8,7 @@
   "scripts": {
     "start": "vite --host 127.0.0.1",
     "build": "vite build && node scripts/writeFeishuConfig.mjs",
-    "typecheck": "tsc --noEmit",
-    "upload": "npm run build && npm --prefix tools/feishu-upload run upload"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@js-temporal/polyfill": "^0.5.1",

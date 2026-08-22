@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 
 describe('open-source release metadata', () => {
@@ -22,7 +22,10 @@ describe('open-source release metadata', () => {
         ),
         'utf8',
       ),
-    ) as { version?: string }
+    ) as {
+      interface?: { composerIcon?: string; logo?: string }
+      version?: string
+    }
     const license = await readFile(
       new URL('../LICENSE', import.meta.url),
       'utf8',
@@ -41,10 +44,52 @@ describe('open-source release metadata', () => {
       version: '2.0.0',
     })
     expect(pluginManifest.version).toMatch(/^2\.0\.0\+codex\.\d{14}$/)
+    expect(pluginManifest.interface).toMatchObject({
+      composerIcon: './assets/migratory-color.png',
+      logo: './assets/migratory-color.png',
+    })
     expect(license).toContain('Apache License')
     expect(license).toContain('Version 2.0, January 2004')
     expect(notice).toContain('openAdam')
     expect(notice).toContain('github.com/tetracoralla/migratory-time')
+  })
+
+  it('keeps only the current referenced product artwork', async () => {
+    await access(
+      new URL('../plugins/migratory-time/assets/migratory-color.png', import.meta.url),
+    )
+
+    for (const path of [
+      '../docs/design/list-edit-concept.png',
+      '../docs/design/simple-mode-concept.png',
+      '../docs/design/titleless-floating-actions-concept.png',
+      '../plugins/migratory-time/assets/icon.png',
+      '../plugins/migratory-time/assets/migratory-bird.png',
+      '../plugins/migratory-time/assets/migratory-globe.png',
+    ]) {
+      await expect(access(new URL(path, import.meta.url))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    }
+  })
+
+  it('does not ship the vulnerable deferred Feishu upload tool', async () => {
+    const addonPackage = JSON.parse(
+      await readFile(
+        new URL('../addons/migratory-time-docs/package.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { scripts?: Record<string, string> }
+
+    expect(addonPackage.scripts).not.toHaveProperty('upload')
+    await expect(
+      access(
+        new URL(
+          '../addons/migratory-time-docs/tools/feishu-upload/package-lock.json',
+          import.meta.url,
+        ),
+      ),
+    ).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('runs the complete repository check before a Pages deployment', async () => {
