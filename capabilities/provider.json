@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "openadam.provider-manifest.v0.1",
+  "schemaVersion": "openadam.provider-manifest.v0.3",
   "provider": {
     "id": "io.github.tetracoralla.migratory-time",
     "name": "Migratory Time",
@@ -10,6 +10,7 @@
     {
       "capabilityId": "org.openadam.time-zone.convert",
       "capabilityVersion": "0.2.0",
+      "profileDigest": "sha256:010e2bc7f7848d6d8012533fec2820d54182e6da836225f8e2f50c6e50910c0c",
       "adapter": {
         "protocol": "openadam.capability-jsonl.v0.1",
         "command": "node",
@@ -17,6 +18,12 @@
           "scripts/runCapabilityAdapter.mjs"
         ]
       },
+      "adapterBindings": [
+        {
+          "operationId": "convert",
+          "target": "scripts/runCapabilityAdapter.mjs#convert"
+        }
+      ],
       "bindings": [
         {
           "operationId": "convert",

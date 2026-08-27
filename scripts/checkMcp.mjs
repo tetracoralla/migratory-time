@@ -252,7 +252,7 @@ try {
     assert.equal(response.isError, undefined)
     assert.equal(resultOf(response).status, 'error')
     assert.equal(resultOf(response).error.code, code)
-    assert.equal(typeof resultOf(response).error.retryable, 'boolean')
+    assert.equal(resultOf(response).error.retryable, false)
   }
 
   const twentyIds = firstPage.items.slice(0, 20).map((zone) => zone.id)
