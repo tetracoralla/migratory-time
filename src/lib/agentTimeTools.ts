@@ -155,7 +155,11 @@ class AgentInputError extends Error {
 
   constructor(detail: Omit<AgentError, 'retryable'> & { retryable?: boolean }) {
     super(detail.message)
-    this.detail = { ...detail, retryable: detail.retryable ?? true }
+    // These errors describe a fixed property of the submitted input. Retrying
+    // the identical request cannot change its format, zone identity, target
+    // count, cursor, year, ambiguity, or precision, so the conservative stable
+    // default is non-retryable. A future genuinely transient error must opt in.
+    this.detail = { ...detail, retryable: detail.retryable ?? false }
   }
 }
 

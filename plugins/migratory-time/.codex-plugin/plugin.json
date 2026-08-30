@@ -1,6 +1,6 @@
 {
   "name": "migratory-time",
-  "version": "2.0.0+codex.20260820152701",
+  "version": "2.0.0+codex.20260830163923",
   "description": "Get current world times and exact daylight-saving-aware conversions in one call.",
   "author": {
     "name": "openAdam",

@@ -35,10 +35,15 @@ const escapedFallbackSkillPath = fallbackSkillPath.replace(
   /[.*+?^${}()|[\]\\]/g,
   '\\$&',
 )
-const escapedCodexRoot = resolve(homedir(), '.codex').replace(
+const codexRoot = resolve(homedir(), '.codex')
+const escapedCodexRoot = codexRoot.replace(
   /[.*+?^${}()|[\]\\]/g,
   '\\$&',
 )
+const skillSearchRoots = [
+  resolve(homedir(), '.codex/skills'),
+  resolve(homedir(), '.codex/plugins/cache'),
+]
 const ROUTING_MODEL = 'gpt-5.6-luna'
 const ROUTING_REASONING_EFFORT = 'low'
 
@@ -171,13 +176,50 @@ async function assertNaturalRoute({ expectedTool, expectedZones, prompt }) {
   const skillFindPattern = new RegExp(
     `^/bin/zsh -lc "find ${escapedCodexRoot} -path '\\*migratory-time\\*SKILL\\.md' -print"$`,
   )
+  const isSkillRead = (command) => {
+    if (typeof command !== 'string' || command.includes('\n')) return false
+    const shellPrefix = '/bin/zsh -lc "'
+    const body = command.startsWith(shellPrefix) && command.endsWith('"')
+      ? command.slice(shellPrefix.length, -1)
+      : command
+    const match = /^sed -n '1,\d+p' '?([^'"]+)'?$/u.exec(body)
+    const skillPath = match?.[1]
+    return (
+      typeof skillPath === 'string' &&
+      skillPath.startsWith(`${codexRoot}/`) &&
+      skillPath.includes('/migratory-time/') &&
+      skillPath.endsWith('/convert-time-zones/SKILL.md')
+    )
+  }
+  const isSkillPathSearch = (command) => {
+    if (typeof command !== 'string' || command.includes('\n')) return false
+    if (!command.startsWith('/bin/zsh -lc "rg --files ')) return false
+    if (!skillSearchRoots.every((root) => command.includes(root))) return false
+    if (!command.includes('2>/dev/null | rg ')) return false
+    if (!command.includes('migratory-time') || !command.includes('SKILL.md')) {
+      return false
+    }
+    const commandWithoutStderrRedirect = command.replace('2>/dev/null', '')
+    if (/[;&`<>]|\$\(|\|\|/u.test(commandWithoutStderrRedirect)) {
+      return false
+    }
+    const pipeline = command.split(' | ')
+    return (
+      pipeline.length >= 2 &&
+      pipeline.length <= 3 &&
+      pipeline[1].startsWith('rg ') &&
+      (pipeline.length === 2 || /^head -5"$/u.test(pipeline[2]))
+    )
+  }
   assert.ok(
     commands.every((item) =>
       [
         installedSkillReadPattern,
         fallbackSkillReadPattern,
         skillFindPattern,
-      ].some((pattern) => pattern.test(item.command ?? '')),
+      ].some((pattern) => pattern.test(item.command ?? '')) ||
+      isSkillRead(item.command) ||
+      isSkillPathSearch(item.command),
     ),
     `Shell is allowed only to locate or read the Migratory Time skill, never as a time-data fallback: ${prompt}\nCommands: ${JSON.stringify(commands.map((item) => item.command))}`,
   )
@@ -197,7 +239,7 @@ async function assertNaturalRoute({ expectedTool, expectedZones, prompt }) {
 await assertNaturalRoute({
   expectedTool: 'current_times',
   expectedZones: ['Asia/Shanghai', 'Europe/Berlin'],
-  prompt: '北京和中欧现在几点？',
+  prompt: '北京和柏林现在几点？',
 })
 await assertNaturalRoute({
   expectedTool: 'convert_time',

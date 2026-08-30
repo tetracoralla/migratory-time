@@ -57,6 +57,14 @@ try {
     currentTimesTool?.inputSchema?.properties?.targetTimeZones?.items
   assert.equal(targetZoneItemSchema?.type, 'string')
   assert.equal(targetZoneItemSchema?.enum, undefined)
+  assert.equal(
+    currentTimesTool?.inputSchema?.properties?.targetTimeZones?.maxItems,
+    20,
+  )
+  assert.equal(
+    convertTool?.inputSchema?.properties?.targetTimeZones?.maxItems,
+    20,
+  )
 
   const searchTool = listed.tools.find((tool) => tool.name === 'search_time_zones')
   const listTool = listed.tools.find((tool) => tool.name === 'list_time_zones')
@@ -252,7 +260,7 @@ try {
     assert.equal(response.isError, undefined)
     assert.equal(resultOf(response).status, 'error')
     assert.equal(resultOf(response).error.code, code)
-    assert.equal(typeof resultOf(response).error.retryable, 'boolean')
+    assert.equal(resultOf(response).error.retryable, false)
   }
 
   const twentyIds = firstPage.items.slice(0, 20).map((zone) => zone.id)

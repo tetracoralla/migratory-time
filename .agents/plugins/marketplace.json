@@ -1,0 +1,20 @@
+{
+  "name": "migratory-time",
+  "interface": {
+    "displayName": "Migratory Time"
+  },
+  "plugins": [
+    {
+      "name": "migratory-time",
+      "source": {
+        "source": "local",
+        "path": "./plugins/migratory-time"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

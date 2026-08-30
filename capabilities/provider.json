@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "openadam.provider-manifest.v0.1",
+  "schemaVersion": "openadam.provider-manifest.v0.3",
   "provider": {
     "id": "io.github.tetracoralla.migratory-time",
     "name": "Migratory Time",
@@ -10,11 +10,25 @@
     {
       "capabilityId": "org.openadam.time-zone.convert",
       "capabilityVersion": "0.2.0",
+      "profileDigest": "sha256:010e2bc7f7848d6d8012533fec2820d54182e6da836225f8e2f50c6e50910c0c",
       "adapter": {
         "protocol": "openadam.capability-jsonl.v0.1",
         "command": "node",
         "args": [
           "scripts/runCapabilityAdapter.mjs"
+        ]
+      },
+      "adapterBindings": [
+        {
+          "operationId": "convert",
+          "target": "scripts/runCapabilityAdapter.mjs#convert"
+        }
+      ],
+      "transportSchemaProbe": {
+        "protocol": "openadam.transport-schema-jsonl.v0.1",
+        "command": "node",
+        "args": [
+          "scripts/runTransportSchemaProbe.mjs"
         ]
       },
       "bindings": [
@@ -27,7 +41,7 @@
             "output": "sha256:f50efe1193ee0f537547d48ceed3d3178596612ab727357acd9b3b3d2f1577ad"
           },
           "transportSchemaDigests": {
-            "input": "sha256:1ebe05451f6c731e4221bc071e2ba26c55353434c36e7e9a317041581e382e54",
+            "input": "sha256:5dbad4d1c552835c55806688c6363c88fd8be3a79acbf83033427cd2a7ebf306",
             "output": "sha256:6302858c9cc91e6725ee983d183a627c8cf14af705a7d44975fdd86bd5128dd9"
           },
           "annotations": {

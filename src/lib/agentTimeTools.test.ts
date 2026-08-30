@@ -190,7 +190,7 @@ describe('agent time tools', () => {
       expect(result.status).toBe('error')
       if (result.status === 'error') {
         expect(result.error.code).toBe(code)
-        expect(result.error.retryable).toBeTypeOf('boolean')
+        expect(result.error.retryable).toBe(false)
       }
     }
   })
@@ -201,6 +201,7 @@ describe('agent time tools', () => {
     expect(result.status).toBe('error')
     if (result.status !== 'error') return
     expect(result.error.code).toBe('AMBIGUOUS_TIME_ZONE')
+    expect(result.error.retryable).toBe(false)
     expect(result.error.input).toBe('United States')
     expect(result.error.candidates?.length).toBeGreaterThan(1)
     expect(result.error.candidates?.length).toBeLessThanOrEqual(10)

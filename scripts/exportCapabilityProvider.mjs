@@ -18,6 +18,7 @@ const schemaRoot = resolve(capabilityRoot, 'schemas')
 const inputPath = resolve(schemaRoot, 'time-zone.convert.input.schema.json')
 const outputPath = resolve(schemaRoot, 'time-zone.convert.output.schema.json')
 const manifestPath = resolve(capabilityRoot, 'provider.json')
+const profileDigest = 'sha256:010e2bc7f7848d6d8012533fec2820d54182e6da836225f8e2f50c6e50910c0c'
 const client = await connectMigratoryTimeClient('migratory-time-capability-export')
 
 try {
@@ -29,7 +30,7 @@ try {
   const contractOutput = JSON.parse(await readFile(outputPath, 'utf8'))
 
   const manifest = {
-    schemaVersion: 'openadam.provider-manifest.v0.1',
+    schemaVersion: 'openadam.provider-manifest.v0.3',
     provider: {
       id: 'io.github.tetracoralla.migratory-time',
       name: 'Migratory Time',
@@ -40,10 +41,22 @@ try {
       {
         capabilityId: 'org.openadam.time-zone.convert',
         capabilityVersion: '0.2.0',
+        profileDigest,
         adapter: {
           protocol: 'openadam.capability-jsonl.v0.1',
           command: 'node',
           args: ['scripts/runCapabilityAdapter.mjs'],
+        },
+        adapterBindings: [
+          {
+            operationId: 'convert',
+            target: 'scripts/runCapabilityAdapter.mjs#convert',
+          },
+        ],
+        transportSchemaProbe: {
+          protocol: 'openadam.transport-schema-jsonl.v0.1',
+          command: 'node',
+          args: ['scripts/runTransportSchemaProbe.mjs'],
         },
         bindings: [
           {

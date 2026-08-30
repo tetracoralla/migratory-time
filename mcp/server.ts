@@ -30,10 +30,10 @@ const timeZoneInputSchema = z
   )
 const targetTimeZonesSchema = z
   .array(timeZoneInputSchema)
-  .max(100)
+  .max(MAX_SELECTED_TIME_ZONES)
   .optional()
   .describe(
-    `Target regions in output order. Omit for the five default regions. Functional limit: ${MAX_SELECTED_TIME_ZONES}.`,
+    `Target regions in output order. Omit for the five default regions. Maximum: ${MAX_SELECTED_TIME_ZONES}.`,
   )
 
 const candidateSchema = z
