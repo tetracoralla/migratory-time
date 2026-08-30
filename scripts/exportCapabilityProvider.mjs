@@ -53,6 +53,11 @@ try {
             target: 'scripts/runCapabilityAdapter.mjs#convert',
           },
         ],
+        transportSchemaProbe: {
+          protocol: 'openadam.transport-schema-jsonl.v0.1',
+          command: 'node',
+          args: ['scripts/runTransportSchemaProbe.mjs'],
+        },
         bindings: [
           {
             operationId: 'convert',

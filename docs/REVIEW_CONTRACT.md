@@ -132,11 +132,13 @@ request, and exits cleanly. Exercise overlong/partial/multiple lines, duplicate
 keys, unknown IDs/operations, invalid canonical schema, output-schema drift,
 stderr noise, timeout, and shutdown.
 
-The current Provider Manifest is v0.1: product-local export checks can compare
-current MCP schema digests, but central canonical-adapter conformance does not
-by itself constitute the v0.2 executable live-transport-probe lane. Report that
-limitation explicitly. One Migratory Time provider passing L0/L1 proves only
-experimental provider conformance, never cross-provider substitution.
+The current Provider Manifest is v0.3. Product-local export checks compare the
+current MCP schema digests, and its executable transport-schema probe lets the
+central live-transport runner reacquire the declared `convert_time` binding.
+That probe establishes only the observed target and schemas; it does not prove
+installed-host availability, Agent routing, semantic correctness, or
+substitution. One Migratory Time provider passing L0/L1 proves only experimental
+provider conformance, never cross-provider substitution.
 
 ## Web product and share-state invariants
 

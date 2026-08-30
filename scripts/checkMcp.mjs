@@ -57,6 +57,14 @@ try {
     currentTimesTool?.inputSchema?.properties?.targetTimeZones?.items
   assert.equal(targetZoneItemSchema?.type, 'string')
   assert.equal(targetZoneItemSchema?.enum, undefined)
+  assert.equal(
+    currentTimesTool?.inputSchema?.properties?.targetTimeZones?.maxItems,
+    20,
+  )
+  assert.equal(
+    convertTool?.inputSchema?.properties?.targetTimeZones?.maxItems,
+    20,
+  )
 
   const searchTool = listed.tools.find((tool) => tool.name === 'search_time_zones')
   const listTool = listed.tools.find((tool) => tool.name === 'list_time_zones')
