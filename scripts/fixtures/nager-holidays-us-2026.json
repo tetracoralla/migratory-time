@@ -1,0 +1,25 @@
+{
+  "sourceURL": "https://nagerholidays.com/api/v4/Holidays/US/2026",
+  "observedAt": "2026-09-01T07:45:11Z",
+  "lastModified": "2026-08-28T14:42:27Z",
+  "responseSha256": "84dc44c3d5414d1cce33a076f78400db64f35c6f89f5cf4741c186d490a22f68",
+  "response": [
+    { "date": "2026-01-01", "name": "New Year's Day", "countryCode": "US", "nationalHoliday": true, "subdivisionCodes": null, "holidayTypes": ["Public", "Bank"] },
+    { "date": "2026-01-19", "name": "Martin Luther King, Jr. Day", "countryCode": "US", "nationalHoliday": true, "subdivisionCodes": null, "holidayTypes": ["Public", "Bank"] },
+    { "date": "2026-02-12", "name": "Lincoln's Birthday", "countryCode": "US", "nationalHoliday": false, "subdivisionCodes": ["US-CA", "US-CT", "US-IL", "US-IN", "US-KY", "US-MI", "US-NY", "US-MO", "US-OH"], "holidayTypes": ["Observance"] },
+    { "date": "2026-02-16", "name": "Presidents Day", "countryCode": "US", "nationalHoliday": true, "subdivisionCodes": null, "holidayTypes": ["Public", "Bank"] },
+    { "date": "2026-04-03", "name": "Good Friday", "countryCode": "US", "nationalHoliday": false, "subdivisionCodes": ["US-CT", "US-DE", "US-HI", "US-IN", "US-KY", "US-LA", "US-NC", "US-ND", "US-NJ", "US-TN"], "holidayTypes": ["Public"] },
+    { "date": "2026-04-03", "name": "Good Friday", "countryCode": "US", "nationalHoliday": false, "subdivisionCodes": ["US-TX"], "holidayTypes": ["Optional"] },
+    { "date": "2026-05-08", "name": "Truman Day", "countryCode": "US", "nationalHoliday": false, "subdivisionCodes": ["US-MO"], "holidayTypes": ["School", "Authorities"] },
+    { "date": "2026-05-25", "name": "Memorial Day", "countryCode": "US", "nationalHoliday": true, "subdivisionCodes": null, "holidayTypes": ["Public", "Bank"] },
+    { "date": "2026-06-19", "name": "Juneteenth National Independence Day", "countryCode": "US", "nationalHoliday": true, "subdivisionCodes": null, "holidayTypes": ["Public", "Bank"] },
+    { "date": "2026-07-04", "name": "Independence Day", "countryCode": "US", "nationalHoliday": true, "subdivisionCodes": null, "holidayTypes": ["Public", "Bank"] },
+    { "date": "2026-09-07", "name": "Labour Day", "countryCode": "US", "nationalHoliday": true, "subdivisionCodes": null, "holidayTypes": ["Public", "Bank"] },
+    { "date": "2026-10-12", "name": "Columbus Day", "countryCode": "US", "nationalHoliday": false, "subdivisionCodes": ["US-AL", "US-AZ", "US-CO", "US-CT", "US-GA", "US-ID", "US-IL", "US-IN", "US-IA", "US-KS", "US-KY", "US-LA", "US-ME", "US-MD", "US-MA", "US-MS", "US-MO", "US-MT", "US-NE", "US-NH", "US-NJ", "US-NM", "US-NY", "US-NC", "US-OH", "US-OK", "US-PA", "US-RI", "US-SC", "US-TN", "US-UT", "US-VA", "US-WV"], "holidayTypes": ["Public"] },
+    { "date": "2026-10-12", "name": "Columbus Day", "countryCode": "US", "nationalHoliday": true, "subdivisionCodes": null, "holidayTypes": ["Bank"] },
+    { "date": "2026-10-12", "name": "Indigenous Peoples' Day", "countryCode": "US", "nationalHoliday": false, "subdivisionCodes": ["US-AK", "US-AL", "US-CA", "US-HI", "US-IA", "US-LA", "US-ME", "US-MI", "US-MN", "US-NC", "US-NE", "US-NM", "US-OK", "US-OR", "US-SD", "US-TX", "US-VA", "US-VT", "US-WI"], "holidayTypes": ["Public"] },
+    { "date": "2026-11-11", "name": "Veterans Day", "countryCode": "US", "nationalHoliday": true, "subdivisionCodes": null, "holidayTypes": ["Public", "Bank"] },
+    { "date": "2026-11-26", "name": "Thanksgiving Day", "countryCode": "US", "nationalHoliday": true, "subdivisionCodes": null, "holidayTypes": ["Public", "Bank"] },
+    { "date": "2026-12-25", "name": "Christmas Day", "countryCode": "US", "nationalHoliday": true, "subdivisionCodes": null, "holidayTypes": ["Public", "Bank"] }
+  ]
+}

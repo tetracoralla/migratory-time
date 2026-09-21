@@ -158,6 +158,13 @@ describe('agent time tools', () => {
       ],
       [
         convertTime({
+          localDateTime: '2026-02-30 12:00',
+          sourceTimeZone: 'Asia/Shanghai',
+        }),
+        'INVALID_FORMAT',
+      ],
+      [
+        convertTime({
           localDateTime: '1900-12-31 12:00',
           sourceTimeZone: 'Asia/Shanghai',
         }),

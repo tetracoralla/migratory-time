@@ -9,4 +9,8 @@ This directory is the provider-facing boundary for the neutral Agent Capability 
 
 The experimental v0.2 profile accepts up to 20 ordered canonical IANA zones worldwide (including `UTC`) and exposes closed `converted`, `ambiguous`, and `nonexistent` result branches with the provider's IANA data version. The adapter translates those canonical requests and semantic results to and from the product's richer aliases, labels, copy text, and share URLs. Those product fields remain outside the profile. The web UI and semantic time-zone core remain product-owned.
 
-This remains a provider-seeded experimental profile. Passing this provider's checks proves L0/L1 conformance for Migratory Time; it does not by itself prove cross-provider substitution.
+This remains a provider-seeded experimental profile. The current central suite
+declares L0 for Migratory Time. A separate 11-case differential corpus against
+an independently written Python `zoneinfo` witness detects covered semantic
+drift, but does not create an L1/L3 claim, a second released provider product,
+or cross-provider substitution.

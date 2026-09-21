@@ -15,6 +15,16 @@ import {
 } from '../src/lib/agentTimeTools'
 import { MAX_SELECTED_TIME_ZONES, MAX_TIME_ZONE_SEARCH_LIMIT } from '../src/data/timeZoneRegistry'
 import { initializeTemporal } from '../src/lib/temporal'
+import {
+  outputSchema,
+  readOnlyAnnotations,
+  toolResult,
+} from './toolSupport'
+import { registerTimePlanTools } from './timePlanTools'
+import { registerScheduleTool } from './scheduleTool'
+import { registerBusinessDeadlineTool } from './businessDeadlineTool'
+import { registerSemanticSchemaResources } from './schemaResources'
+import { registerAvailabilityTool } from './availabilityTool'
 
 const localeSchema = z
   .enum(['zh', 'en'])
@@ -172,31 +182,6 @@ const listTimeZonesResultSchema = z.discriminatedUnion('status', [
   errorResultSchema,
 ])
 
-const provenanceSchema = z
-  .object({
-    engine: z.literal('Temporal+Intl'),
-    timeZoneData: z.literal('IANA'),
-    timeZoneDataVersion: z.string(),
-  })
-  .strict()
-
-function outputSchema<T extends z.ZodTypeAny>(result: T) {
-  return z.object({ provenance: provenanceSchema, result }).strict()
-}
-
-const readOnlyAnnotations = {
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: false,
-  readOnlyHint: true,
-} as const
-
-const provenance = {
-  engine: 'Temporal+Intl' as const,
-  timeZoneData: 'IANA' as const,
-  timeZoneDataVersion: process.versions.tz ?? 'runtime-provided',
-}
-
 function summarizeConversion(result: ConvertTimeResult | CurrentTimesResultUnion) {
   if (result.status === 'converted') {
     return `${result.copyText}\n\nShare: ${result.shareUrl}`
@@ -234,19 +219,12 @@ function resultText(
   return `${lines.join('\n')}${continuation}`
 }
 
-function toolResult(result: object, text: string) {
-  return {
-    content: [{ type: 'text' as const, text }],
-    structuredContent: { provenance, result },
-  }
-}
-
 export function createMigratoryTimeServer() {
   const server = new McpServer(
     { name: 'migratory-time', version: '2.0.0' },
     {
       instructions:
-        'Use current_times for current time and convert_time for exact civil-time conversion anywhere in the world. Pass ordinary city, country, or region names directly; use search_time_zones only for explicit exploration or after an AMBIGUOUS_TIME_ZONE/UNKNOWN_TIME_ZONE result. Never calculate offsets manually. If convert_time returns ambiguous, ask the user to choose earlier or later; if it returns nonexistent, do not substitute another time.',
+        'Use current_times and convert_time for civil time; resolve_time and validate_time_plan for commitments; expand_schedule for recurrence; compute_deadline for business hours; and find_time_windows for caller-supplied availability. Pass ordinary region names directly and search only after an ambiguous/unknown name. Never calculate offsets manually, invent calendar facts, or execute downstream actions.',
     },
   )
 
@@ -299,6 +277,12 @@ export function createMigratoryTimeServer() {
       return toolResult(result, summarizeConversion(result))
     },
   )
+
+  registerTimePlanTools(server)
+  registerScheduleTool(server)
+  registerBusinessDeadlineTool(server)
+  registerAvailabilityTool(server)
+  registerSemanticSchemaResources(server)
 
   server.registerTool(
     'search_time_zones',

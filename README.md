@@ -1,6 +1,6 @@
 # Migratory Time
 
-**Migratory Time** 是 openAdam 的双语世界时钟与时区换算工具。正式名称保留 `Time`，让第一次看到的人也能立刻理解用途；紧凑位置可只显示 `Migratory`。
+**Migratory Time** 是 openAdam 的双语世界时钟、时区换算工具和 Agent 确定性时间语义层。正式名称保留 `Time`，让第一次看到的人也能立刻理解用途；紧凑位置可只显示 `Migratory`。人类网页继续保持现有极简任务范围，TimePlan 等 Agent 契约不会进入网页。
 
 点击列表中任一地区的时间，直接键入完整日期时间，所有地区立即联动。页面只保留世界时钟、悬浮操作与必要反馈，不设置独立输入区或解释面板。
 
@@ -49,17 +49,33 @@ npm run dev
 - `current_times`：返回同一瞬间下最多 20 个地区的当前时间；普通无歧义地点一次调用完成。
 - `search_time_zones`：在明确探索或名称无法唯一解析时，有界返回最多 10 个候选及当前偏移。
 - `list_time_zones`：以游标分页浏览规范 IANA 注册表，每次最多 50 项，不一次倾倒完整目录。
+- `resolve_time`：把显式的 `fixed_instant` 或 `fixed_wall_time` 意图编译成版本化 TimePlan，保留 DST 选择和 tzdb 依赖。
+- `validate_time_plan`：用当前运行时重新求解已存的固定时间、重复计划、业务时限或可用窗口计划；业务与可用窗口分支要求调用方通过 `currentCalendar` / `currentSnapshot` 同时提供当前完整版本化日历/快照，区分语义未变、依赖变化、发生漂移和当前无法验证，不执行任何下游修改。
+- `expand_schedule`：在必填的本地日期窗口内有界展开日/周/月重复计划，显式处理 DST gap/overlap、月末溢出、附加日期、排除日期和分页，不执行计划。
+- `compute_deadline`：使用调用方提供且带版本的 JSON Business Calendar 叠加营业分钟，显式处理非营业起点、例外日期、跨夜班次和 DST 边界，不内置节假日真相。
+- `find_time_windows`：在最多 31 天内交集调用方提供的 availability、busy 和 preferred 精确区间，返回有界候选、本地视图和确定性的偏好计数；无解时返回不可约参与者冲突。
 
-工具会同时返回结构化结果、可直接粘贴的专业格式和网页分享链接。插件源码位于 `plugins/migratory-time/`，其中的薄 Skill 只负责引导 Agent 何时调用工具以及如何处理重复或不存在的当地时刻；准确结果由 MCP 中的共享程序逻辑产生。
+工具会同时返回结构化结果和简短文本；普通换算还会返回可直接粘贴的专业格式与网页分享链接。大型 Agent 结果联合类型在运行时继续严格校验，并通过 `migratory-time://schemas/<tool>/result.json` MCP Resource 按需读取，不占用常驻工具目录。插件源码位于 `plugins/migratory-time/`，其中的薄 Skill 只负责引导 Agent 选择工具、处理歧义和说明计划变化；准确结果由 MCP 中的共享程序逻辑产生。TimePlan v0.1 的责任边界见 [`docs/TEMPORAL_SEMANTICS.md`](docs/TEMPORAL_SEMANTICS.md)。
 
 本地验证：
 
 ```bash
 npm run typecheck:mcp
 npm run check:mcp
+npm run check:cold-start-mcp
+npm run check:plugin-package
+npm run check:source-agent
 ```
 
-本地插件通过个人市场安装时，个人市场中的 `migratory-time` 源码必须与本仓库的 `plugins/migratory-time/` 完全相同。每次更新先重新构建 MCP，再按 Codex 的本地插件更新流程写入单一 cachebuster、同步到个人市场源码并重新安装；刷新 Codex 后，应在新会话中同时看到 Skill 和四个领域工具。
+`check:cold-start-mcp` 连续启动 12 个全新的插件 MCP 进程，并把初始化后的第一笔
+`current_times` 领域调用作为检查对象。它隔离验证插件 server 的首次调用，不能
+替代已安装 Host 的 fresh-session 路由检查。
+
+`check:source-agent` 需要本机已有 Codex 登录态。它在临时工作目录中把当前
+源码插件作为隔离 MCP 服务挂载，验证高级请求只经一次领域工具完成，不读取或
+替换个人已安装插件。
+
+本地插件通过个人市场安装时，个人市场中的 `migratory-time` 源码必须与本仓库的 `plugins/migratory-time/` 完全相同。每次更新先重新构建 MCP，再按 Codex 的本地插件更新流程写入单一 cachebuster、同步到个人市场源码并重新安装；刷新 Codex 后，应在新会话中同时看到 Skill、九个领域工具和五个按需结果 Schema Resources。
 
 ### 时区数据与产品别名
 
