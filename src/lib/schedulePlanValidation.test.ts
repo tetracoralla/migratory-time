@@ -62,6 +62,26 @@ describe('schedule plan validation', () => {
     }
   })
 
+  it('treats a stored plan with reordered JSON keys as unchanged', () => {
+    const reverseKeys = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(reverseKeys)
+      if (value !== null && typeof value === 'object') {
+        return Object.fromEntries(
+          Object.entries(value as Record<string, unknown>)
+            .reverse()
+            .map(([key, child]) => [key, reverseKeys(child)]),
+        )
+      }
+      return value
+    }
+    const plan = originalPlan()
+    const reorderedPlan = reverseKeys(JSON.parse(JSON.stringify(plan))) as typeof plan
+
+    const validation = validateSchedulePlan(reorderedPlan, context)
+
+    expect(validation).toMatchObject({ dependencyChanges: [], status: 'unchanged' })
+  })
+
   it('detects a changed expansion and a newly conflicting recurrence', () => {
     const plan = originalPlan()
     const changedExpansion = validateSchedulePlan(
