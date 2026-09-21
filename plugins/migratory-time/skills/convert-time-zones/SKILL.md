@@ -1,9 +1,9 @@
 ---
 name: convert-time-zones
-description: Get current civil times or convert exact dates worldwide with Migratory Time's daylight-saving-aware tools. Use for any city, country, region, or IANA time zone.
+description: Get or convert current or scheduled civil time worldwide, or resolve and revalidate fixed-instant and fixed-wall-time commitments with Migratory Time. Use plan-time-commitments for recurrence, business-calendar, or shared-availability work.
 ---
 
-# Convert Time Zones
+# World Time and Fixed Time Plans
 
 Use the bundled deterministic MCP tools for calculations. Do not calculate UTC offsets or daylight-saving transitions manually.
 
@@ -13,6 +13,8 @@ Use the bundled deterministic MCP tools for calculations. Do not calculate UTC o
 - Call `convert_time` once for a scheduled local date and time. Supply `localDateTime` in `YYYY-MM-DD HH:mm`; source and target regions accept the same worldwide names.
 - Call `search_time_zones` only for explicit exploration or after the direct tool returns `UNKNOWN_TIME_ZONE` or `AMBIGUOUS_TIME_ZONE`. Use its returned IANA id in the next conversion call.
 - Call paginated `list_time_zones` only when the user explicitly asks to browse the canonical registry. Do not add a discovery call for an ordinary unambiguous name.
+- Call `resolve_time` once when the user needs a reusable commitment rather than a one-off conversion. Use `fixed_instant` when the same global instant must remain fixed, and `fixed_wall_time` when the named region's local calendar time must remain fixed even if future time-zone rules change.
+- Call `validate_time_plan` when the user supplies a fixed-instant or fixed-wall-time plan and asks whether it still means the same thing. Pass the stored plan unchanged.
 
 ## Handle local-time boundaries
 
@@ -21,6 +23,14 @@ Use the bundled deterministic MCP tools for calculations. Do not calculate UTC o
 - If the result is `nonexistent`, explain that the local time is invalid or was skipped by a clock change. Do not silently move it or substitute the current time.
 - If the result is `error`, follow its structured `code`, `field`, `candidates`, and `retryable` values. Never fall back to Web or manual offset arithmetic.
 - If required date, time, or source region information is missing and changes the answer, ask for that information.
+
+## Handle time plans
+
+- Supply structured intent only. Do not put natural-language instructions, downstream actions, calendar events, or execution commands into a TimePlan.
+- If `resolve_time` returns `underspecified`, obtain only the named missing fields. If it returns `ambiguous`, show the earlier and later plan candidates and ask before choosing. If it returns `nonexistent`, do not shift the time.
+- A `fixed_instant` plan preserves its exact instant and has no tzdb dependency. A `fixed_wall_time` plan preserves the canonical local time and IANA zone; its resolved instant may drift when rules change.
+- If `validate_time_plan` returns `unchanged`, note any dependency-version change separately. If it returns `drifted`, present the exact changed fields and current result. Validation does not authorize updating a calendar, scheduler, message, or other downstream object.
+- Treat `unverifiable` as a runtime or schema-version boundary, not as proof that the stored plan is wrong.
 
 ## Present the result
 

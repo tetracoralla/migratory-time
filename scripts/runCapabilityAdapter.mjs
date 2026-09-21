@@ -141,7 +141,9 @@ function providerError(response) {
   const structured = response.structuredContent?.result
   if (structured?.status === 'error') {
     return {
-      code: structured.error.code,
+      code: structured.error.code === 'INVALID_FORMAT'
+        ? 'INVALID_INPUT'
+        : structured.error.code,
       message: structured.error.message,
       retryable: structured.error.retryable,
     }

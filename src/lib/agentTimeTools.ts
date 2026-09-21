@@ -19,6 +19,7 @@ import {
   resolveWallTime,
 } from './timeConversion'
 import { makeShareUrl } from './shareState'
+import { parseIsoLocalMinute } from './isoCalendar'
 
 export const PUBLIC_APP_URL =
   'https://tetracoralla.github.io/migratory-time/'
@@ -163,8 +164,6 @@ class AgentInputError extends Error {
   }
 }
 
-const LOCAL_DATE_TIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/
-
 function errorResult(error: unknown): AgentErrorResult {
   if (error instanceof AgentInputError) {
     return { error: error.detail, status: 'error' }
@@ -236,16 +235,8 @@ function normalizeTargetTimeZones(
 }
 
 function parseLocalDateTime(localDateTime: string) {
-  const match = LOCAL_DATE_TIME_PATTERN.exec(localDateTime)
-  if (!match) {
-    throw new AgentInputError({
-      code: 'INVALID_FORMAT',
-      field: 'localDateTime',
-      input: localDateTime,
-      message: 'localDateTime must use the exact format YYYY-MM-DD HH:mm.',
-    })
-  }
-  if (Number(match[1]) < MIN_SUPPORTED_YEAR) {
+  const parsed = parseIsoLocalMinute(localDateTime, ' ')
+  if (parsed.status === 'unsupported_year') {
     throw new AgentInputError({
       code: 'UNSUPPORTED_YEAR',
       field: 'localDateTime',
@@ -253,10 +244,16 @@ function parseLocalDateTime(localDateTime: string) {
       message: `localDateTime must be in year ${MIN_SUPPORTED_YEAR} or later.`,
     })
   }
-  return {
-    date: `${match[1]}-${match[2]}-${match[3]}`,
-    time: `${match[4]}:${match[5]}`,
+  if (parsed.status === 'invalid') {
+    throw new AgentInputError({
+      code: 'INVALID_FORMAT',
+      field: 'localDateTime',
+      input: localDateTime,
+      message:
+        'localDateTime must name a real ISO calendar minute in exact YYYY-MM-DD HH:mm form.',
+    })
   }
+  return parsed
 }
 
 function selectResults(allResults: ConversionResult[], locale: Locale) {

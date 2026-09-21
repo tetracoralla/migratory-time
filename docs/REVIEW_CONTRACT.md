@@ -15,9 +15,22 @@ results, an installed-cache version, or a hosted-page screenshot.
   `src/data/timeZoneRegistry.ts` own civil-time conversion, IANA registry
   resolution, DST gap/repeat handling, minute-precision limits, aliases, and
   localized product metadata.
-- `src/lib/agentTimeTools.ts` owns the product Agent result unions, stable
-  functional errors, bounded search/list behavior, copy text, and share links.
-  `mcp/server.ts` owns the four-tool transport and provenance envelope.
+- `src/lib/agentTimeTools.ts` owns the conversion/search Agent result unions,
+  stable functional errors, bounded search/list behavior, copy text, and share
+  links. `src/lib/timePlan.ts`, `timePlanTypes.ts`, and
+  `timePlanValidation.ts` own product TimePlan resolution, dependencies, and
+  revalidation. `src/lib/schedule.ts` and `scheduleTypes.ts` own bounded
+  recurrence expansion and its explicit policy effects;
+  `schedulePlanValidation.ts`, `businessDeadlineValidation.ts`, and
+  `availabilityPlanValidation.ts` own current-dependency replay and drift
+  classification for the three richer plan types.
+  `src/lib/businessDeadline.ts`, `businessCalendarValidation.ts`, and
+  `businessCalendarTypes.ts` own caller-supplied business-calendar validation
+  and deadline calculation. `src/lib/availabilitySolver.ts`,
+  `availabilityValidation.ts`, and `exactIntervalMath.ts` own bounded interval
+  solving and deterministic preference ranking. `mcp/server.ts`, the domain
+  schema modules, and `mcp/schemaResources.ts` own the nine-tool transport,
+  runtime-closed schemas, on-demand result resources, and provenance envelope.
 - `src/App.tsx`, components, hooks, preferences, and share modules own the human
   browser flow. Product labels, locale, region search, order, copy text, share
   URLs, and images stay product-owned.
@@ -74,10 +87,15 @@ results, an installed-cache version, or a hosted-page screenshot.
 ## Agent surface, errors, and context budget
 
 The public MCP tools are exactly `convert_time`, `current_times`,
-`search_time_zones`, and compatibility `list_time_zones`. A known zone/current
-request takes one domain call. Search is for explicit exploration or recovery
+`resolve_time`, `validate_time_plan`, `expand_schedule`, `search_time_zones`,
+`compute_deadline`, `find_time_windows`, and compatibility `list_time_zones`.
+A known zone/current request, explicit plan resolution, bounded schedule
+expansion, complete business-calendar deadline, or complete availability
+snapshot takes one domain call. Search is for explicit exploration or recovery
 from an ambiguous/unknown name; list is paginated compatibility, never an
-unbounded registry dump.
+unbounded registry dump. Validation accepts the prior plan directly and
+performs no downstream mutation; business-deadline and availability plans also
+require the current complete same-id calendar or snapshot.
 
 - Result schemas are strict discriminated unions. `convert_time` has
   `converted`, `ambiguous`, `nonexistent`, and `error`; current/search/list have
@@ -93,6 +111,13 @@ unbounded registry dump.
 - Candidate lists, input echo, messages, copy text, share URLs, labels, and text
   summaries are all part of the response budget. Do not test only
   `structuredContent` while ignoring duplicated text content.
+- Invocation schemas remain always-discovered. Large semantic result schemas
+  are parsed on every call and published as five static
+  `migratory-time://schemas/<tool>/result.json` resources; verify the resources
+  are closed, current, individually readable, and each below 64 KiB. Reused
+  definitions may be emitted through local `$ref` values. Omitting them from tool
+  discovery is a context optimization, not permission to skip result
+  validation or typed branches.
 - Current functional bounds are 20 ordered target zones, search results at most
   10, list pages at most 50, and total listed tool JSON below 48 KiB. A maximum
   successful call stays below the 64 KiB product response budget. The transport
@@ -102,6 +127,117 @@ unbounded registry dump.
 - Stable registry order and opaque cursor semantics must survive pagination;
   invalid, stale, negative, oversized, and non-numeric cursors return
   `INVALID_CURSOR` without duplicate/omitted pages or unbounded input echo.
+
+## TimePlan semantic invariants
+
+1. **Intent and resolution remain separate.** `fixed_instant` preserves one
+   canonical exact instant and has no tzdb dependency. `fixed_wall_time`
+   preserves a canonical local ISO minute plus IANA zone and records its
+   resolved instant/offset separately.
+2. **A wall-time choice is explicit.** Repeated input with `reject` returns
+   exactly earlier/later candidate plans; a selected plan records the selected
+   policy. Nonexistent time is not shifted. Missing intent returns only the
+   named missing fields and never a guessed plan.
+3. **Dependencies are descriptive, not authority.** A stored tzdb version says
+   what produced the old resolution. Revalidation must recompute from intent
+   with the current core rather than trusting stored resolution or dependency
+   values.
+4. **Version changes and semantic changes are different.** If tzdb version
+   changes while instant/offset remain equal, validation is `unchanged` with a
+   dependency change. Changed instant/offset or a newly repeated/nonexistent
+   local time is `drifted`. Unsupported schema versions are `unverifiable`.
+5. **Plans do not execute.** Resolution and validation are read-only,
+   idempotent calculations. They never create or edit calendar events,
+   schedules, messages, jobs, or other downstream state, and cannot authorize
+   such a side effect.
+6. **v0.1 is product-owned.** It does not extend the neutral time-zone
+   Capability Profile. Do not claim cross-provider substitution or add a
+   canonical Profile until the central contract and another current consumer
+   justify it.
+
+## Schedule expansion invariants
+
+1. **The grammar is deliberately closed.** Accept only the typed daily,
+   weekly, and monthly rules. Do not accept natural language, unrestricted
+   RRULE strings, executable callbacks, or provider-specific recurrence blobs.
+2. **Every expansion is bounded.** A local-date window is required and spans
+   at most 3,660 days; a page contains at most 32 instances; additional and
+   excluded local date-times contain at most 64 values in total. Pagination
+   resumes strictly after its exact local-time cursor. A malformed cursor
+   returns the declared `INVALID_CURSOR` branch rather than a generic format
+   error.
+3. **Exceptional dates never use an implicit policy.** Gap, overlap, and
+   month-overflow behavior default to `reject`. Skip, shift, constrain, or both
+   are caller-selected policies and their effects remain visible in the result.
+4. **Each occurrence resolves through TimePlan.** Every returned plan is a
+   fixed-wall-time TimePlan. Scheduled and effective local values remain
+   separate after a shift or constraint; overlap `both` returns two ordered
+   plans for the same scheduled occurrence.
+5. **Expansion has no execution authority.** It does not store schedules,
+   observe Free/Busy state, create calendar events, wait until an instant, or
+   trigger downstream work.
+6. **A successful page is replayable.** The schedule-plan schema records a
+   canonical, fully defaulted page request and one tzdb dependency. Validation
+   reruns that page; a version-only change is not semantic drift, while changed
+   instances/effects or a new conflict is.
+
+## Business-calendar and deadline invariants
+
+1. **Calendar facts remain caller-owned.** Every calculation receives one
+   complete, versioned JSON definition. No holiday, workweek, closure, early
+   close, or overnight shift is inferred from locale, country, model knowledge,
+   or a hidden registry.
+2. **Intervals are local and explicit.** Weekly hours and date exceptions use
+   strict local minutes; an exception fully replaces its date. Overnight work
+   requires `endDayOffset: 1`. Duplicate dates, overlap, invalid ranges, and
+   more than 128 total intervals are functional errors.
+3. **Boundary policy never hides DST.** Gap and overlap behavior defaults to
+   `reject`. Shifted boundary values and counts remain visible. A start outside
+   business time also rejects by default and reports the next open; only an
+   explicit `next_open` policy moves it.
+4. **Business duration is exact elapsed time.** One business minute is sixty
+   elapsed seconds inside a resolved open interval. It is not a wall-minute
+   count across a clock change and is distinct from calendar days or ordinary
+   exact duration outside business hours.
+5. **The result is a calculation record, not provider truth.** Record calendar
+   id/version, normalized-definition fingerprint, tzdb version, start policy,
+   exact deadline, local view, and bounded scan counts. The fingerprint detects
+   changed operational content after normalization but excludes provider id and
+   declared version, which remain separate dependency metadata. It cannot
+   authenticate the calendar or prove the policy remains valid.
+6. **Work is finite and read-only.** Duration is at most 525,600 business
+   minutes and scanning stops after 3,660 source dates. Calculation does not
+   store calendars, observe Free/Busy, create tasks/events, wait, or execute.
+
+## Availability solver invariants
+
+1. **All hard facts are caller-supplied exact intervals.** Each participant
+   supplies availability and optional busy intervals; preferred intervals are
+   soft ranking data only. No work hours, locale assumptions, Free/Busy fetch,
+   contact lookup, or room data is inferred.
+2. **Interval algebra is exact and deterministic.** Merge overlap/adjacency,
+   clip to the exact search interval, subtract busy time, then intersect all
+   participants. Candidate starts align to the explicit step grid anchored at
+   `search.start`; duration is exact elapsed minutes. Participants are an
+   unordered set keyed by unique id and are normalized into id order before
+   solving and rendering; input permutation cannot change candidates,
+   dependency fingerprints, local-view order, or conflict-core selection.
+3. **Preference ranking is inspectable.** Rank by the count of participants
+   whose full candidate lies inside a preferred interval, then by earlier
+   instant. Return the numerator, denominator, matching/non-matching ids, and
+   local views. Do not introduce model scoring, hidden weights, or taste.
+4. **No-solution output is precise.** Distinguish empty common availability,
+   insufficient continuous duration, and grid exclusion. Return a
+   deterministic irreducible participant set, and do not describe it as the
+   globally smallest core.
+5. **Bounds are cumulative.** At most 12 participants, 512 total intervals, 31
+   exact search days, 10 returned candidates, and a minimum five-minute step.
+   Maximum response remains below 64 KiB including local views and text.
+6. **Snapshots are dependencies, not truth.** Record snapshot id/version,
+   normalized content fingerprint, zones, and tzdb version. The fingerprint
+   excludes snapshot id/version so metadata-only changes remain distinguishable
+   from participant-fact changes. The solver cannot verify upstream freshness,
+   reserve the chosen interval, create events, or execute.
 
 ## Capability/Profile seam
 
@@ -137,8 +273,9 @@ current MCP schema digests, and its executable transport-schema probe lets the
 central live-transport runner reacquire the declared `convert_time` binding.
 That probe establishes only the observed target and schemas; it does not prove
 installed-host availability, Agent routing, semantic correctness, or
-substitution. One Migratory Time provider passing L0/L1 proves only experimental
-provider conformance, never cross-provider substitution.
+substitution. The current central suite declares L0 for Migratory Time; its
+separate Python `zoneinfo` differential witness is a bounded drift observation,
+not L1/L3 conformance or cross-provider substitution.
 
 ## Web product and share-state invariants
 
@@ -172,14 +309,20 @@ with another tool. Ordinary 1–20-zone conversion should remain one call, and a
 persistent MCP session should not accumulate formatters, listeners, Temporal
 instances, or response buffers without bound.
 
-For changes affecting the registry, Temporal/tzdb, conversion, search, schema,
-or response construction, run the same before/after corpus on one machine:
-minimum/typical/20-zone conversions; valid/repeated/nonexistent/historical
-inputs; 1/10-result search; every list page; 1,000 warm conversions; and an
-8-way mixed burst. Record throughput, p50/p95/p99, startup, heap/RSS trend,
-output bytes, error rate, and exact-result parity. A faster median does not
-offset wrong DST branches, tail spikes, context growth, or a registry/schema
-drift.
+For changes affecting the registry, Temporal/tzdb, conversion, TimePlan,
+search, schema, or response construction, run the same before/after corpus on
+one machine: minimum/typical/20-zone conversions;
+valid/repeated/nonexistent/historical inputs; TimePlan
+resolve/revalidate unchanged/drifted/version cases; recurrence gap/overlap,
+month-overflow, override, pagination, and maximum-page cases; 1/10-result
+search; every list page; business-calendar ordinary, exception, overnight,
+outside-start, DST-boundary, closed-calendar, and maximum-bound cases; 1,000
+warm conversions or plan resolutions as affected; availability intersection,
+busy subtraction, preference order, no-solution cores, alignment, 12-person
+maximum output, and an 8-way mixed burst. Record throughput, p50/p95/p99,
+startup, heap/RSS trend, output bytes, error rate, and exact-result parity. A
+faster median does not offset wrong DST branches, tail spikes, context growth,
+or a registry/schema drift.
 
 If batch is later requested, define item count, total zones/bytes/time, shared
 clock/tzdb snapshot, ordering, per-item error, cancellation, and partial failure
@@ -195,22 +338,36 @@ npm run check
 ```
 
 This covers unit/integration tests, Web/type builds, bundle checks, MCP type and
-real stdio runtime, local Capability snapshots/digests, and the canonical
-adapter probe. It does not prove an installed host route or hosted deployment.
+real stdio runtime, local Capability snapshots/digests, the canonical adapter
+probe, twelve fresh MCP processes whose first domain call is `current_times`,
+and a relocated standalone-plugin package launch with the exact tool and
+schema-resource inventory. The fresh-process check isolates plugin-server
+startup from Agent selection and installed-host activation; it does not prove
+an installed host route or hosted deployment.
 
 Additional lanes are intentionally separate:
 
 ```sh
+npm run check:source-agent
 npm run check:codex-plugin
 npm run check:deployments
 ```
 
+- `check:source-agent` runs fresh Codex tasks against the source MCP transport.
+  It checks Agent selection and one-call routing without reading or replacing
+  the installed plugin, so it does not prove installed availability.
 - `check:codex-plugin` is meaningful only when it runs a fresh host task against
   the intended currently installed plugin/cache and records the actual tool
-  route; source packaging alone is development evidence.
+  route; source packaging and source-Agent routing remain separate observations.
+  If the direct fresh-process and source-Agent lanes pass while the installed
+  first call fails before a retry succeeds, use the bounded reproduction route
+  in `diagnostics/2026-09-02-installed-codex-first-call.md` and leave installed
+  availability failed or blocked rather than changing semantic code.
 - `check:deployments` compares current generated artifacts with hosted Pages and
-  plugin distribution. A known old deployment is a real FAIL/pending release,
-  not an excuse to call source release-ready. Push/deploy remains owner-authorized.
+  the configured `personal` marketplace plugin source byte-for-byte. A known
+  old deployment or marketplace source is a real FAIL/pending release, not an
+  excuse to call source release-ready. Marketplace synchronization, push, and
+  deploy remain owner-authorized.
 
 Report `PASS / FAIL / BLOCKED` separately for development regression, provider
 canonical conformance, live transport binding, installed Agent flow, browser

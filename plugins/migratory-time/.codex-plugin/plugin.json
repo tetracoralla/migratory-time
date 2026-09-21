@@ -1,7 +1,7 @@
 {
   "name": "migratory-time",
-  "version": "2.0.0+codex.20260830163923",
-  "description": "Get current world times and exact daylight-saving-aware conversions in one call.",
+  "version": "2.0.0+codex.20260902075500",
+  "description": "Convert world time, plan schedules and deadlines, solve shared windows, and revalidate commitments.",
   "author": {
     "name": "openAdam",
     "url": "https://github.com/tetracoralla"
@@ -18,8 +18,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Migratory Time",
-    "shortDescription": "Get current times or convert dates worldwide.",
-    "longDescription": "Give Codex one-call current times and deterministic civil-time conversion worldwide, including ordinary city, country, region, IANA, and explicit UTC/GMT offset names, daylight-saving repeats and gaps, and exact quarter-hour offsets.",
+    "shortDescription": "Convert time, plan deadlines, and solve shared windows.",
+    "longDescription": "Give Codex deterministic civil-time conversion worldwide, bounded recurrence, caller-supplied business deadlines and shared-window solving, plus versioned time commitments with explicit daylight-saving policy and revalidation.",
     "developerName": "openAdam",
     "category": "Productivity",
     "capabilities": [
@@ -32,7 +32,7 @@
     "defaultPrompt": [
       "Convert 2026-08-17 09:00 US Pacific time for Beijing, Kathmandu, and London.",
       "What time is it now in Beijing, Paris, and the Chatham Islands?",
-      "Find the IANA time zone for a city."
+      "Find a shared 45-minute window from these versioned availability intervals."
     ]
   },
   "mcpServers": "./.mcp.json"

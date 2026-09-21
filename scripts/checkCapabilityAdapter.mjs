@@ -64,6 +64,15 @@ const requests = [
     },
   },
   {
+    id: 'invalid-calendar-date',
+    operationId: 'convert',
+    input: {
+      localDateTime: '2026-02-30T12:00',
+      sourceTimeZone: 'UTC',
+      targetTimeZones: ['Asia/Shanghai'],
+    },
+  },
+  {
     extra: true,
     id: 'extra-envelope-field',
     operationId: 'convert',
@@ -212,6 +221,7 @@ assert.deepEqual(
 assert.equal(byId.get('later')?.result?.status, 'converted')
 assert.equal(byId.get('later')?.result?.instant, '2026-11-01T06:30:00Z')
 assert.equal(byId.get('nonexistent')?.result?.status, 'nonexistent')
+assert.equal(byId.get('invalid-calendar-date')?.error?.code, 'INVALID_INPUT')
 assert.equal(byId.get('extra-envelope-field')?.error?.code, 'ADAPTER_INVALID_REQUEST')
 assert.equal(byId.get('product-field-leak')?.error?.code, 'INVALID_INPUT')
 assert.equal(byId.get('provider-limit')?.error?.code, 'INVALID_INPUT')

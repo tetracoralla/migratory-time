@@ -7,6 +7,7 @@ import { promisify } from 'node:util'
 
 const repoRoot = resolve(import.meta.dirname, '..')
 const distRoot = resolve(repoRoot, 'dist')
+const pluginRoot = resolve(repoRoot, 'plugins/migratory-time')
 const execFileAsync = promisify(execFile)
 const deployments = {
   githubPages: 'https://tetracoralla.github.io/migratory-time/',
@@ -93,3 +94,48 @@ for (const [name, baseUrl] of Object.entries(deployments)) {
     `${name}: ${localFiles.length} files match local dist byte-for-byte; removed legacy paths are absent`,
   )
 }
+
+const marketplaceName = process.env.MIGRATORY_TIME_PLUGIN_MARKETPLACE ?? 'personal'
+const codexBinary = process.env.CODEX_BIN ?? 'codex'
+const { stdout: pluginListText } = await execFileAsync(
+  codexBinary,
+  ['plugin', 'list', '--marketplace', marketplaceName, '--available', '--json'],
+  { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 },
+)
+const pluginList = JSON.parse(pluginListText)
+const distributedPlugin = [...(pluginList.available ?? []), ...(pluginList.installed ?? [])]
+  .find(({ name }) => name === 'migratory-time')
+assert.ok(
+  distributedPlugin,
+  `migratory-time is absent from the ${marketplaceName} marketplace`,
+)
+assert.equal(
+  distributedPlugin.source?.source,
+  'local',
+  `${marketplaceName} migratory-time distribution must expose a local source path`,
+)
+const distributedPluginRoot = resolve(distributedPlugin.source.path)
+const [sourceFiles, distributedFiles] = await Promise.all([
+  listFiles(pluginRoot),
+  listFiles(distributedPluginRoot),
+])
+const sourceSet = new Set(sourceFiles)
+const distributedSet = new Set(distributedFiles)
+const missing = sourceFiles.filter((file) => !distributedSet.has(file))
+const extra = distributedFiles.filter((file) => !sourceSet.has(file))
+const changed = []
+for (const file of sourceFiles.filter((candidate) => distributedSet.has(candidate))) {
+  const [sourceBytes, distributedBytes] = await Promise.all([
+    readFile(resolve(pluginRoot, file)),
+    readFile(resolve(distributedPluginRoot, file)),
+  ])
+  if (digest(sourceBytes) !== digest(distributedBytes)) changed.push(file)
+}
+assert.deepEqual(
+  { changed, extra, missing },
+  { changed: [], extra: [], missing: [] },
+  `${marketplaceName} plugin distribution at ${distributedPluginRoot} differs from source package`,
+)
+console.log(
+  `pluginDistribution: ${sourceFiles.length} files match ${marketplaceName} marketplace source byte-for-byte`,
+)
